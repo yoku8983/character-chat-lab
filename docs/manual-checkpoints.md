@@ -14,18 +14,25 @@ SQSへ渡す責務に限定されていることを確認します。
 - SQSへ渡すメッセージ形式がWorkerの入力契約と一致するか
 - botメッセージ、空メッセージ、Slack再送を適切に扱えるか
 
-## Gate 2: 初回会話ゲート
+## Gate 2: 初回会話ゲート（確認済み）
 
 Receiver、SQS、Worker、DynamoDB、Bedrock、Slack返信を接続した段階で、
-最小の会話体験が成立していることを人間が確認します。
+最小の会話体験が成立していることを確認しました。
 
-確認観点:
+確認済み内容:
 
-- Slack DMで会話できるか
-- Bedrock返答がSlackに返るか
-- 会話履歴が保存されるか
+- Slack DMからReceiver Lambdaへイベントが到達した
+- Receiver LambdaからSQSへイベントが送信された
+- Worker LambdaがSQSイベントを処理した
+- Worker LambdaがDynamoDBとBedrockを利用してSlackへ返信した
+- MessagesTableへ`user`と`assistant`の両メッセージが保存された
+- `us-east-1`でinference profile ID
+  `us.anthropic.claude-haiku-4-5-20251001-v1:0`を使用して成功した
+
+継続確認する観点:
+
 - 次の発話で直近会話が反映されるか
-- キャラカードの口調が効いているか
+- キャラクターカードの口調が効いているか
 
 ## Gate 3: 障害・重複処理ゲート
 

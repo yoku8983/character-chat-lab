@@ -70,6 +70,13 @@ class DeploymentAssetsTest(unittest.TestCase):
         parsed = tomllib.loads(content)
 
         self.assertEqual(parsed["version"], 0.1)
+        deploy = parsed["default"]["deploy"]["parameters"]
+        self.assertEqual(deploy["region"], "us-east-1")
+        self.assertIn(
+            "BedrockModelId="
+            "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+            deploy["parameter_overrides"],
+        )
         self.assertNotIn("SlackSigningSecret", content)
         self.assertNotIn("SlackBotToken", content)
         self.assertNotIn("xoxb-", content)
@@ -99,6 +106,20 @@ class DeploymentAssetsTest(unittest.TestCase):
             "デフォルトキャラをDynamoDBに投入できるか",
             "Slack DMで実際に会話できるか",
             "CloudWatch Logsで障害調査できるか",
+        ]
+        for check in required_checks:
+            with self.subTest(check=check):
+                self.assertIn(check, checkpoints)
+
+    def test_gate_2_records_successful_e2e(self):
+        checkpoints = (
+            ROOT / "docs" / "manual-checkpoints.md"
+        ).read_text(encoding="utf-8")
+
+        required_checks = [
+            "Gate 2: 初回会話ゲート（確認済み）",
+            "MessagesTableへ`user`と`assistant`の両メッセージが保存された",
+            "us.anthropic.claude-haiku-4-5-20251001-v1:0",
         ]
         for check in required_checks:
             with self.subTest(check=check):
