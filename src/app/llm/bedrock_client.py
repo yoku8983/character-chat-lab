@@ -5,6 +5,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from botocore.exceptions import ClientError
+
 from app.config import BedrockSettings
 from app.llm.base import LlmClient
 
@@ -23,9 +25,11 @@ class BedrockApiError(BedrockError):
         message: str,
         *,
         error_code: str | None = None,
+        error_message: str | None = None,
     ) -> None:
         super().__init__(message)
         self.error_code = error_code
+        self.error_message = error_message
 
 
 class BedrockEmptyResponseError(BedrockError):
@@ -88,18 +92,33 @@ class BedrockConverseClient(LlmClient):
             )
         except Exception as error:
             error_code = _aws_error_code(error)
+            error_message = _aws_error_message(error)
+            log_fields = {
+                "bedrock_model_id": self._settings.model_id,
+                "aws_region": self._settings.region_name,
+                "bedrock_exception_type": type(error).__name__,
+                "aws_error_code": error_code,
+                "aws_error_message": error_message,
+            }
             logger.error(
-                "Bedrock Converse APIの呼び出しに失敗しました",
-                extra={
-                    "bedrock_model_id": self._settings.model_id,
-                    "aws_region": self._settings.region_name,
-                    "aws_error_code": error_code,
-                },
+                "Bedrock Converse APIの呼び出しに失敗しました: "
+                "exception_type=%s "
+                "aws_error_code=%s aws_error_message=%s",
+                log_fields["bedrock_exception_type"],
+                error_code,
+                error_message,
+                extra=log_fields,
             )
+            detail_parts = []
+            if error_code:
+                detail_parts.append(f"エラーコード: {error_code}")
+            if error_message:
+                detail_parts.append(f"メッセージ: {error_message}")
             raise BedrockApiError(
                 "Bedrock Converse APIの呼び出しに失敗しました"
-                + (f"（エラーコード: {error_code}）" if error_code else ""),
+                + (f"（{'、'.join(detail_parts)}）" if detail_parts else ""),
                 error_code=error_code,
+                error_message=error_message,
             ) from error
 
         reply = _extract_reply_text(response)
@@ -176,3 +195,14 @@ def _aws_error_code(error: Exception) -> str | None:
         return None
     code = error_data.get("Code")
     return code if isinstance(code, str) and code else None
+
+
+def _aws_error_message(error: Exception) -> str | None:
+    if not isinstance(error, ClientError):
+        return None
+
+    error_data = error.response.get("Error")
+    if not isinstance(error_data, dict):
+        return None
+    message = error_data.get("Message")
+    return message if isinstance(message, str) and message else None

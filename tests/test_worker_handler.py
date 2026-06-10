@@ -1,6 +1,6 @@
 import json
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from app.llm.bedrock_client import BedrockApiError
 from app.slack.client import SlackApiError
@@ -240,6 +240,34 @@ class WorkerHandlerTest(unittest.TestCase):
         )
         self.assertIn("Bedrockによる返信生成に失敗", "\n".join(logs.output))
         dependencies.slack_client.post_message.assert_not_called()
+
+    def test_bedrock_error_message_is_in_structured_log(self):
+        dependencies = _dependencies()
+        dependencies.llm_client.generate_reply.side_effect = BedrockApiError(
+            "Bedrock失敗（エラーコード: ValidationException）"
+        )
+
+        with patch("app.worker_handler.logger.error") as log_error:
+            result = lambda_handler(
+                _sqs_event(_payload(), message_id="bedrock-failure"),
+                None,
+                dependencies=dependencies,
+            )
+
+        self.assertEqual(
+            result["batchItemFailures"],
+            [{"itemIdentifier": "bedrock-failure"}],
+        )
+        structured_logs = [
+            call.kwargs.get("extra", {}) for call in log_error.call_args_list
+        ]
+        self.assertIn(
+            "Bedrock失敗（エラーコード: ValidationException）",
+            [
+                item.get("bedrock_error_message")
+                for item in structured_logs
+            ],
+        )
 
     def test_slack_error_is_logged_and_returned_as_batch_failure(self):
         dependencies = _dependencies()

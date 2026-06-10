@@ -3,6 +3,8 @@ import sys
 import unittest
 from unittest.mock import Mock, patch
 
+from botocore.exceptions import ClientError
+
 from app.config import BedrockSettings
 from app.llm.bedrock_client import (
     BedrockApiError,
@@ -132,6 +134,52 @@ class BedrockConverseClientTest(unittest.TestCase):
         self.assertEqual(context.exception.error_code, "ThrottlingException")
         self.assertIn("Bedrock Converse API", str(context.exception))
         self.assertIsInstance(context.exception.__cause__, FakeAwsError)
+
+    def test_client_error_logs_aws_code_and_message_without_prompts(self):
+        runtime_client = Mock()
+        runtime_client.converse.side_effect = ClientError(
+            {
+                "Error": {
+                    "Code": "ValidationException",
+                    "Message": "inference profile IDが必要です",
+                }
+            },
+            "Converse",
+        )
+        client = BedrockConverseClient(
+            _settings(),
+            runtime_client=runtime_client,
+        )
+        system_prompt = "ログへ出してはいけないsystem_prompt"
+        user_prompt = "ログへ出してはいけないuser_prompt"
+
+        with patch("app.llm.bedrock_client.logger.error") as log_error:
+            with self.assertRaises(BedrockApiError) as context:
+                client.generate_reply(system_prompt, user_prompt)
+
+        details = log_error.call_args.kwargs["extra"]
+        self.assertEqual(details["bedrock_exception_type"], "ClientError")
+        self.assertEqual(details["aws_error_code"], "ValidationException")
+        self.assertEqual(
+            details["aws_error_message"],
+            "inference profile IDが必要です",
+        )
+        self.assertNotIn(system_prompt, repr(details))
+        self.assertNotIn(user_prompt, repr(details))
+        self.assertEqual(context.exception.error_code, "ValidationException")
+        self.assertEqual(
+            context.exception.error_message,
+            "inference profile IDが必要です",
+        )
+        self.assertIn("ValidationException", str(context.exception))
+        self.assertIn(
+            "inference profile IDが必要です",
+            str(context.exception),
+        )
+        detail_log = log_error.call_args
+        self.assertIn("Bedrock Converse API", detail_log.args[0])
+        self.assertIn("ValidationException", detail_log.args)
+        self.assertIn("inference profile IDが必要です", detail_log.args)
 
     def test_api_error_log_does_not_include_exception_detail(self):
         runtime_client = Mock()

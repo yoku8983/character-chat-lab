@@ -164,10 +164,18 @@ def _process_message(
             system_prompt,
             user_prompt,
         )
-    except BedrockError:
+    except BedrockError as error:
+        log_fields = {
+            "slack_event_id": message.event_id,
+            "bedrock_error_type": type(error).__name__,
+            "bedrock_error_message": str(error),
+        }
         logger.error(
-            "Bedrockによる返信生成に失敗しました",
-            extra={"slack_event_id": message.event_id},
+            "Bedrockによる返信生成に失敗しました: "
+            "error_type=%s error_message=%s",
+            log_fields["bedrock_error_type"],
+            log_fields["bedrock_error_message"],
+            extra=log_fields,
         )
         raise
 
