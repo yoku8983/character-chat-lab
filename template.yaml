@@ -1,0 +1,227 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Character Chat Lab v0.1
+
+Parameters:
+  SlackSigningSecret:
+    Type: String
+    NoEcho: true
+    MinLength: 1
+    Description: Slack AppのSigning Secret
+
+  SlackBotToken:
+    Type: String
+    NoEcho: true
+    MinLength: 1
+    Description: Slack Bot User OAuth Token
+
+  DefaultCharacterId:
+    Type: String
+    Default: default
+    MinLength: 1
+    Description: 既定キャラクターID
+
+  MessageHistoryLimit:
+    Type: Number
+    Default: 20
+    MinValue: 1
+    Description: Promptへ渡す直近履歴の最大件数
+
+  BedrockModelId:
+    Type: String
+    MinLength: 1
+    Description: Bedrock Converse APIで利用するモデルID
+
+  BedrockModelResourceArn:
+    Type: String
+    Default: "*"
+    Description: bedrock:InvokeModelを許可するモデルまたは推論プロファイルARN
+
+  BedrockMaxTokens:
+    Type: Number
+    Default: 512
+    MinValue: 1
+    Description: Bedrockの最大出力トークン数
+
+  BedrockTemperature:
+    Type: Number
+    Default: 0.4
+    MinValue: 0
+    MaxValue: 1
+    Description: Bedrockの生成温度
+
+Globals:
+  Function:
+    Runtime: python3.12
+    CodeUri: src/
+    Architectures:
+      - x86_64
+
+Resources:
+  SlackEventsQueueDeadLetter:
+    Type: AWS::SQS::Queue
+    Properties:
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+
+  SlackEventsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 360
+      MessageRetentionPeriod: 345600
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt SlackEventsQueueDeadLetter.Arn
+        maxReceiveCount: 5
+      SqsManagedSseEnabled: true
+
+  CharactersTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: character_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: character_id
+          KeyType: HASH
+      SSESpecification:
+        SSEEnabled: true
+
+  MessagesTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: session_id
+          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: S
+      KeySchema:
+        - AttributeName: session_id
+          KeyType: HASH
+        - AttributeName: created_at
+          KeyType: RANGE
+      SSESpecification:
+        SSEEnabled: true
+
+  ProcessedEventsTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: event_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: event_id
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expires_at
+        Enabled: true
+      SSESpecification:
+        SSEEnabled: true
+
+  ReceiverFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: app.receiver_handler.lambda_handler
+      Description: Slack Events APIを検証してSQSへ送信するReceiver Lambda
+      MemorySize: 256
+      Timeout: 10
+      FunctionUrlConfig:
+        AuthType: NONE
+        InvokeMode: BUFFERED
+      Environment:
+        Variables:
+          SLACK_SIGNING_SECRET: !Ref SlackSigningSecret
+          SQS_QUEUE_URL: !Ref SlackEventsQueue
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Statement:
+            - Sid: SendSlackEventsToQueue
+              Effect: Allow
+              Action:
+                - sqs:SendMessage
+              Resource: !GetAtt SlackEventsQueue.Arn
+
+  WorkerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: app.worker_handler.lambda_handler
+      Description: SQSイベントからBedrock返信を生成してSlackへ投稿するWorker Lambda
+      MemorySize: 512
+      Timeout: 60
+      Environment:
+        Variables:
+          SLACK_BOT_TOKEN: !Ref SlackBotToken
+          CHARACTERS_TABLE_NAME: !Ref CharactersTable
+          MESSAGES_TABLE_NAME: !Ref MessagesTable
+          PROCESSED_EVENTS_TABLE_NAME: !Ref ProcessedEventsTable
+          DEFAULT_CHARACTER_ID: !Ref DefaultCharacterId
+          MESSAGE_HISTORY_LIMIT: !Ref MessageHistoryLimit
+          BEDROCK_MODEL_ID: !Ref BedrockModelId
+          BEDROCK_MAX_TOKENS: !Ref BedrockMaxTokens
+          BEDROCK_TEMPERATURE: !Ref BedrockTemperature
+      Events:
+        SlackEvents:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt SlackEventsQueue.Arn
+            BatchSize: 5
+            Enabled: true
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Statement:
+            - Sid: ConsumeSlackEventsQueue
+              Effect: Allow
+              Action:
+                - sqs:ReceiveMessage
+                - sqs:DeleteMessage
+                - sqs:GetQueueAttributes
+                - sqs:ChangeMessageVisibility
+              Resource: !GetAtt SlackEventsQueue.Arn
+            - Sid: ReadWriteCharacterChatTables
+              Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+                - dynamodb:DeleteItem
+                - dynamodb:Query
+              Resource:
+                - !GetAtt CharactersTable.Arn
+                - !GetAtt MessagesTable.Arn
+                - !GetAtt ProcessedEventsTable.Arn
+            - Sid: InvokeBedrockModel
+              Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+              Resource: !Ref BedrockModelResourceArn
+
+Outputs:
+  SlackEventsEndpointUrl:
+    Description: Slack Events APIのRequest URLに設定するReceiver Function URL
+    Value: !GetAtt ReceiverFunctionUrl.FunctionUrl
+
+  SqsQueueUrl:
+    Description: ReceiverからWorkerへ渡すSQSキューURL
+    Value: !Ref SlackEventsQueue
+
+  CharactersTableName:
+    Description: Charactersテーブル名
+    Value: !Ref CharactersTable
+
+  MessagesTableName:
+    Description: Messagesテーブル名
+    Value: !Ref MessagesTable
+
+  ProcessedEventsTableName:
+    Description: Processed Eventsテーブル名
+    Value: !Ref ProcessedEventsTable

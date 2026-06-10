@@ -1,0 +1,13 @@
+version = 0.1
+
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.deploy.parameters]
+stack_name = "character-chat-lab-v01"
+resolve_s3 = true
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true
+region = "ap-northeast-1"
+parameter_overrides = "DefaultCharacterId=default MessageHistoryLimit=20 BedrockModelId=REPLACE_WITH_MODEL_ID BedrockModelResourceArn=* BedrockMaxTokens=512 BedrockTemperature=0.4"

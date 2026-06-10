@@ -1,0 +1,5 @@
+[project]
+name = "character-chat-lab"
+version = "0.1.0"
+description = "SlackベースのキャラクターAIチャットMVP"
+requires-python = ">=3.12"
