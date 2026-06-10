@@ -99,6 +99,18 @@ Amazon Bedrock:
 モデルやリージョンによっては、通常モデルIDではなくinference profile IDが
 必要です。
 
+Claude Haiku 4.5などAWS Marketplace経由の第三者モデルは、AWSアカウントで
+初めて呼び出す際にBedrockが購読処理を開始することがあります。呼び出し主体に
+`aws-marketplace:ViewSubscriptions`や`aws-marketplace:Subscribe`などの
+権限がない場合、初回呼び出しだけ一時的に成功し、その後の呼び出しが
+`AccessDeniedException`になることがあります。
+
+この場合は、管理者権限でBedrock Playgroundから対象モデルを一度実行して
+利用を有効化するか、利用有効化を行う作業用IAMユーザーまたはロールへ
+`AWSMarketplaceManageSubscriptions`を付与します。購読完了後、通常の
+モデル呼び出しだけを行うLambda実行ロールにはMarketplace権限は不要です。
+詳細は[docs/deployment.md](docs/deployment.md)を参照してください。
+
 ## DynamoDBのキー
 
 - Characters: パーティションキー`character_id`

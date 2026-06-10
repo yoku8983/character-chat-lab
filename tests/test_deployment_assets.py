@@ -125,6 +125,37 @@ class DeploymentAssetsTest(unittest.TestCase):
             with self.subTest(check=check):
                 self.assertIn(check, checkpoints)
 
+    def test_deployment_docs_include_bedrock_marketplace_notes(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        deployment = (
+            ROOT / "docs" / "deployment.md"
+        ).read_text(encoding="utf-8")
+
+        required_readme_fragments = [
+            "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+            "aws-marketplace:ViewSubscriptions",
+            "AWSMarketplaceManageSubscriptions",
+            "Lambda実行ロールにはMarketplace権限は不要",
+        ]
+        for fragment in required_readme_fragments:
+            with self.subTest(document="README.md", fragment=fragment):
+                self.assertIn(fragment, readme)
+
+        required_deployment_fragments = [
+            "初回利用時のMarketplace購読",
+            "aws-marketplace:Subscribe",
+            "AWSMarketplaceManageSubscriptions",
+            "inference profile ARN",
+            "ルーティング先リージョン",
+            "foundation model ARN",
+        ]
+        for fragment in required_deployment_fragments:
+            with self.subTest(
+                document="docs/deployment.md",
+                fragment=fragment,
+            ):
+                self.assertIn(fragment, deployment)
+
 
 if __name__ == "__main__":
     unittest.main()
