@@ -51,6 +51,18 @@ class DeploymentAssetsTest(unittest.TestCase):
         self.assertNotIn("xoxb-", template)
         self.assertIn("NoEcho: true", template)
 
+    def test_lambda_requirements_use_runtime_boto3(self):
+        path = ROOT / "src" / "requirements.txt"
+        content = path.read_text(encoding="utf-8")
+        dependencies = [
+            line.strip()
+            for line in content.splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        ]
+
+        self.assertEqual(dependencies, [])
+        self.assertIn("Lambdaランタイム同梱版", content)
+
     def test_samconfig_example_is_valid_toml_without_secrets(self):
         path = ROOT / "samconfig.toml.example"
         content = path.read_text(encoding="utf-8")

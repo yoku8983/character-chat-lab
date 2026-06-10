@@ -61,6 +61,14 @@ WorkerのCloudWatch Logsには`AccessDeniedException`が記録されます。
 - [Amazon Bedrockのモデルアクセス](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html)
 - [Converse API対応モデル](https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference-supported-models-features.html)
 
+## テスト
+
+リポジトリ直下で、デプロイ前に既存テストを実行します。
+
+```bash
+PYTHONPATH=src python3 -m unittest discover -s tests -p "test_*.py"
+```
+
 ## SAMビルド
 
 リポジトリ直下で実行します。
@@ -70,8 +78,11 @@ sam validate --lint
 sam build
 ```
 
-Lambdaコードは`src/`からビルドされ、ReceiverとWorkerの両方で
-Python 3.12ランタイムを使用します。
+Lambdaコードと`src/requirements.txt`は`src/`からビルドされ、
+ReceiverとWorkerの両方でPython 3.12ランタイムを使用します。
+`src/requirements.txt`に追加パッケージはなく、アプリが利用する
+`boto3`はLambdaランタイム同梱版を使用します。この方針と理由は
+READMEの「依存関係」を参照してください。
 
 Bedrock Clientが参照する`AWS_REGION`はLambda実行環境から自動で
 提供されます。Lambdaの予約済み環境変数なので`template.yaml`では

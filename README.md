@@ -121,14 +121,27 @@ API失敗時は`BedrockApiError`、空応答時は
 
 通常ログにはプロンプト全文やSlack Bot Tokenを記録しません。
 
+## 依存関係
+
+Lambdaへ同梱するPython依存関係は`src/requirements.txt`で管理します。
+現在、追加で同梱するサードパーティーパッケージはありません。
+
+アプリが利用する`boto3`は`requirements.txt`へ含めず、Python 3.12の
+AWS Lambdaランタイムに同梱されるSDKを利用します。現時点では
+`boto3`以外の外部依存がなく、デプロイパッケージとビルドを最小限に
+保つためです。将来、SDKの特定バージョンが必要になった場合は
+`src/requirements.txt`へバージョンを明記して同梱します。
+
+`scripts/seed_default_character.py`はLambda外のローカル環境で実行するため、
+実行するPython環境には別途`boto3`のインストールが必要です。
+
 ## テスト
 
 Python 3.12環境で実行します。実AWS環境、AWS認証情報、
 実Slackワークスペースは不要です。
 
-```powershell
-$env:PYTHONPATH = "src"
-python -m unittest discover -s tests -v
+```bash
+PYTHONPATH=src python3 -m unittest discover -s tests -p "test_*.py"
 ```
 
 ## デプロイ
