@@ -42,3 +42,22 @@ export interface Model {
   name: string;
   description: string;
 }
+
+export interface Session {
+  id: string;
+  personaId: string;
+  modelId: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messageCount?: number;
+}
+
+export interface Memory {
+  id: number;
+  personaId: string;
+  content: string;
+  importance: number;
+  sourceSessionId?: string;
+  createdAt: string;
+}

@@ -1,5 +1,7 @@
 import { NextRequest } from "next/server";
-import { loadPersona } from "@/lib/personas";
+import { getDb } from "@/lib/db";
+import { getPersona } from "@/lib/db-personas";
+import { getTopMemories } from "@/lib/db-memories";
 import { buildSystemPrompt, buildFewShotMessages } from "@/lib/prompt";
 import { ChatMessage } from "@/lib/types";
 
@@ -19,7 +21,8 @@ export async function POST(request: NextRequest) {
     messages: ChatMessage[];
   };
 
-  const persona = loadPersona(personaId);
+  const db = getDb();
+  const persona = getPersona(db, personaId);
   if (!persona) {
     return new Response(
       JSON.stringify({ error: `Persona "${personaId}" not found` }),
@@ -27,7 +30,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const systemPrompt = buildSystemPrompt(persona);
+  const episodicMemories = getTopMemories(db, personaId, 20).map((m) => m.content);
+  const systemPrompt = buildSystemPrompt(persona, episodicMemories);
   const fewShot = buildFewShotMessages(persona);
 
   const apiMessages = [

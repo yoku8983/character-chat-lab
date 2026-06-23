@@ -21,9 +21,14 @@ AIキャラクターの人格・口調・固有知識・長期記憶を定義し
 - API Routes は App Router (`app/api/`)
 - 環境変数は `.env.local` に記述、`.env.example` をコミット
 
+### 開発時の注意事項
+- `npx next build` を実行する前に、dev サーバー (`next dev`) を必ず停止すること。dev サーバーが古い `.next` を掴んだまま build が上書きすると、`Cannot find module './XXX.js'` ランタイムエラーが発生する
+- build 後に dev サーバーを再起動する場合は `.next` を削除してからにすること (`rm -rf .next`)
+
 ### 仕様書の場所
 - MVP1 の仕様・DONE 定義: `docs/mvp1-spec.md`
+- MVP2 の仕様・DONE 定義: `docs/mvp2-spec.md`
 - ロードマップ: `docs/roadmap.md`
 
 ## 現在のフェーズ
-MVP1 開発中。`docs/mvp1-spec.md` の DONE 定義をすべて満たすこと。
+MVP2 完了。改善・バグ修正フェーズ。

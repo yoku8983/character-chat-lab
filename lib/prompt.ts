@@ -1,6 +1,6 @@
 import { Persona } from "./types";
 
-export function buildSystemPrompt(persona: Persona): string {
+export function buildSystemPrompt(persona: Persona, episodicMemories?: string[]): string {
   const { identity, knowledge, memory, behavior } = persona;
   const style = identity.speaking_style;
 
@@ -35,6 +35,13 @@ export function buildSystemPrompt(persona: Persona): string {
     parts.push(`\n## 記憶`);
     for (const entry of memory.entries) {
       parts.push(`- ${entry}`);
+    }
+  }
+
+  if (episodicMemories && episodicMemories.length > 0) {
+    parts.push(`\n## エピソード記憶（過去の会話から）`);
+    for (const mem of episodicMemories) {
+      parts.push(`- ${mem}`);
     }
   }
 

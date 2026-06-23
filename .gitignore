@@ -17,6 +17,9 @@ out/
 *.pem
 *:Zone.Identifier
 
+# data
+data/
+
 # debug
 npm-debug.log*
 

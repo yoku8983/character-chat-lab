@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
-import { loadPersona } from "@/lib/personas";
+import { getDb } from "@/lib/db";
+import { getPersona } from "@/lib/db-personas";
 import { buildConvertPrompt, buildFewShotMessages } from "@/lib/prompt";
 
 export async function POST(request: NextRequest) {
@@ -18,7 +19,8 @@ export async function POST(request: NextRequest) {
     text: string;
   };
 
-  const persona = loadPersona(personaId);
+  const db = getDb();
+  const persona = getPersona(db, personaId);
   if (!persona) {
     return new Response(
       JSON.stringify({ error: `Persona "${personaId}" not found` }),
