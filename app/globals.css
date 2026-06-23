@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  --font-sans: "Noto Sans JP", sans-serif;
   --bg-primary: #f8fafb;
   --bg-secondary: #ffffff;
   --bg-tertiary: #e8eef3;
@@ -16,6 +17,7 @@
 body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
+  font-family: "Noto Sans JP", sans-serif;
 }
 
 ::-webkit-scrollbar {

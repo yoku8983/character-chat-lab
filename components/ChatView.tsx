@@ -1,31 +1,78 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { ChatMessage } from "@/lib/types";
+
+const CHINESE_MODEL_PREFIXES = ["deepseek/"];
 
 interface ChatViewProps {
   personaId: string;
   personaName: string;
   modelId: string;
+  sessionId: string | null;
+  onSessionCreated: (sessionId: string) => void;
+  onMessagesUpdate?: (messages: ChatMessage[]) => void;
 }
 
-const CHINESE_MODEL_PREFIXES = ["deepseek/"];
-
-export default function ChatView({ personaId, personaName, modelId }: ChatViewProps) {
+export default function ChatView({
+  personaId,
+  personaName,
+  modelId,
+  sessionId,
+  onSessionCreated,
+  onMessagesUpdate,
+}: ChatViewProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const isChineseModel = CHINESE_MODEL_PREFIXES.some((p) => modelId.startsWith(p));
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const sessionRef = useRef<string | null>(sessionId);
+  const isChineseModel = CHINESE_MODEL_PREFIXES.some((p) => modelId.startsWith(p));
+
+  useEffect(() => {
+    sessionRef.current = sessionId;
+  }, [sessionId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    onMessagesUpdate?.(messages);
+  }, [messages, onMessagesUpdate]);
+
+  const loadSession = useCallback(async (sid: string) => {
+    const res = await fetch(`/api/sessions/${sid}`);
+    if (res.ok) {
+      const data = await res.json();
+      setMessages(data.messages);
+    }
+  }, []);
 
   useEffect(() => {
-    setMessages([]);
-  }, [personaId]);
+    if (sessionId) {
+      loadSession(sessionId);
+    } else {
+      setMessages([]);
+    }
+  }, [sessionId, loadSession]);
+
+  const persistMessage = async (sid: string, role: string, content: string) => {
+    await fetch(`/api/sessions/${sid}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role, content }),
+    });
+  };
+
+  const ensureSession = async (): Promise<string> => {
+    if (sessionRef.current) return sessionRef.current;
+    const res = await fetch("/api/sessions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ personaId, modelId }),
+    });
+    const session = await res.json();
+    sessionRef.current = session.id;
+    return session.id;
+  };
 
   const handleSubmit = async () => {
     const trimmed = input.trim();
@@ -37,26 +84,22 @@ export default function ChatView({ personaId, personaName, modelId }: ChatViewPr
     setInput("");
     setIsStreaming(true);
 
-    const assistantMessage: ChatMessage = { role: "assistant", content: "" };
-    setMessages([...newMessages, assistantMessage]);
+    const sid = await ensureSession();
+    await persistMessage(sid, "user", trimmed);
+
+    setMessages([...newMessages, { role: "assistant", content: "" }]);
 
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          personaId,
-          modelId,
-          messages: newMessages,
-        }),
+        body: JSON.stringify({ personaId, modelId, messages: newMessages }),
       });
 
       if (!response.ok) {
         const error = await response.json();
-        setMessages([
-          ...newMessages,
-          { role: "assistant", content: `エラー: ${error.error}` },
-        ]);
+        const errMsg = `エラー: ${error.error}`;
+        setMessages([...newMessages, { role: "assistant", content: errMsg }]);
         setIsStreaming(false);
         return;
       }
@@ -71,11 +114,10 @@ export default function ChatView({ personaId, personaName, modelId }: ChatViewPr
         const { done, value } = await reader.read();
         if (done) break;
         accumulated += decoder.decode(value, { stream: true });
-        setMessages([
-          ...newMessages,
-          { role: "assistant", content: accumulated },
-        ]);
+        setMessages([...newMessages, { role: "assistant", content: accumulated }]);
       }
+
+      await persistMessage(sid, "assistant", accumulated);
     } catch {
       setMessages([
         ...newMessages,
@@ -83,6 +125,7 @@ export default function ChatView({ personaId, personaName, modelId }: ChatViewPr
       ]);
     } finally {
       setIsStreaming(false);
+      onSessionCreated(sid);
     }
   };
 
@@ -119,9 +162,7 @@ export default function ChatView({ personaId, personaName, modelId }: ChatViewPr
               }`}
               style={{
                 backgroundColor:
-                  msg.role === "user"
-                    ? "var(--user-bubble)"
-                    : "var(--assistant-bubble)",
+                  msg.role === "user" ? "var(--user-bubble)" : "var(--assistant-bubble)",
                 border: msg.role === "assistant" ? "1px solid var(--border)" : "none",
               }}
             >
@@ -130,7 +171,10 @@ export default function ChatView({ personaId, personaName, modelId }: ChatViewPr
                   {personaName}
                 </p>
               )}
-              <p className="text-xl whitespace-pre-wrap leading-relaxed" style={{ color: msg.role === "user" ? "#ffffff" : undefined }}>
+              <p
+                className="text-xl whitespace-pre-wrap leading-relaxed"
+                style={{ color: msg.role === "user" ? "#ffffff" : undefined }}
+              >
                 {msg.content}
                 {isStreaming && i === messages.length - 1 && msg.role === "assistant" && (
                   <span className="inline-block w-2.5 h-6 ml-0.5 animate-pulse" style={{ backgroundColor: "var(--accent-hover)" }} />
@@ -145,7 +189,6 @@ export default function ChatView({ personaId, personaName, modelId }: ChatViewPr
       <div className="px-8 py-5" style={{ borderTop: "1px solid var(--border)" }}>
         <div className="flex gap-4 items-end">
           <textarea
-            ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -163,10 +206,7 @@ export default function ChatView({ personaId, personaName, modelId }: ChatViewPr
             onClick={handleSubmit}
             disabled={isStreaming || !input.trim()}
             className="rounded-xl px-8 py-4 text-xl font-medium transition-colors disabled:opacity-40"
-            style={{
-              backgroundColor: "var(--accent)",
-              color: "white",
-            }}
+            style={{ backgroundColor: "var(--accent)", color: "white" }}
           >
             送信
           </button>

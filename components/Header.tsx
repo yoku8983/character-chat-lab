@@ -14,8 +14,10 @@ interface HeaderProps {
   models: Model[];
   selectedModel: string;
   onModelChange: (id: string) => void;
-  mode: "chat" | "convert";
-  onModeChange: (mode: "chat" | "convert") => void;
+  mode: "chat" | "convert" | "personas";
+  onModeChange: (mode: "chat" | "convert" | "personas") => void;
+  onToggleMemory: () => void;
+  memoryCount: number;
 }
 
 export default function Header({
@@ -27,6 +29,8 @@ export default function Header({
   onModelChange,
   mode,
   onModeChange,
+  onToggleMemory,
+  memoryCount,
 }: HeaderProps) {
   return (
     <header className="flex items-center gap-6 px-8 py-4 border-b" style={{ backgroundColor: "var(--bg-secondary)", borderColor: "var(--border)" }}>
@@ -70,6 +74,22 @@ export default function Header({
         </select>
       </div>
 
+      <button
+        onClick={onToggleMemory}
+        className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-base transition-colors"
+        style={{ backgroundColor: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border)" }}
+      >
+        記憶
+        {memoryCount > 0 && (
+          <span
+            className="text-xs px-1.5 py-0.5 rounded-full"
+            style={{ backgroundColor: "var(--accent)", color: "white" }}
+          >
+            {memoryCount}
+          </span>
+        )}
+      </button>
+
       <div className="flex ml-auto rounded overflow-hidden" style={{ border: "1px solid var(--border)" }}>
         <button
           onClick={() => onModeChange("chat")}
@@ -90,6 +110,16 @@ export default function Header({
           }}
         >
           口調変換
+        </button>
+        <button
+          onClick={() => onModeChange("personas")}
+          className="px-6 py-2.5 text-lg transition-colors"
+          style={{
+            backgroundColor: mode === "personas" ? "var(--accent)" : "var(--bg-tertiary)",
+            color: mode === "personas" ? "#ffffff" : "var(--text-primary)",
+          }}
+        >
+          ペルソナ管理
         </button>
       </div>
     </header>
