@@ -35,3 +35,14 @@ body {
   0%, 80%, 100% { opacity: 0.3; }
   40% { opacity: 1; }
 }
+
+@keyframes slide-in-right {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@media (max-width: 767px) {
+  select, button, input, textarea {
+    font-size: 16px;
+  }
+}

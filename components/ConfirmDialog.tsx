@@ -14,7 +14,7 @@ export default function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmD
       onClick={onCancel}
     >
       <div
-        className="rounded-xl px-8 py-6 max-w-md mx-4"
+        className="rounded-xl px-5 md:px-8 py-4 md:py-6 max-w-md mx-4"
         style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border)" }}
         onClick={(e) => e.stopPropagation()}
       >

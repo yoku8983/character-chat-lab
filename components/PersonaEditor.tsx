@@ -149,23 +149,23 @@ export default function PersonaEditor({ persona, onSave, onCancel }: PersonaEdit
   });
 
   return (
-    <div className="h-full overflow-y-auto px-8 py-8">
+    <div className="h-full overflow-y-auto px-4 md:px-8 py-4 md:py-8">
       <div className="max-w-3xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <h2 className="text-3xl font-bold">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 md:mb-8 gap-3 md:gap-0">
+          <h2 className="text-2xl md:text-3xl font-bold">
             {isNew ? "新規ペルソナ作成" : `${form.name} を編集`}
           </h2>
           <div className="flex rounded overflow-hidden" style={{ border: "1px solid var(--border)" }}>
             <button
               onClick={editMode === "form" ? undefined : switchToForm}
-              className="px-5 py-2 text-base transition-colors"
+              className="px-3 md:px-5 py-1.5 md:py-2 text-sm md:text-base transition-colors"
               style={tabStyle(editMode === "form")}
             >
               フォーム
             </button>
             <button
               onClick={editMode === "json" ? undefined : switchToJson}
-              className="px-5 py-2 text-base transition-colors"
+              className="px-3 md:px-5 py-1.5 md:py-2 text-sm md:text-base transition-colors"
               style={tabStyle(editMode === "json")}
             >
               JSON
@@ -219,8 +219,8 @@ export default function PersonaEditor({ persona, onSave, onCancel }: PersonaEdit
             <textarea
               value={jsonText}
               onChange={(e) => { setJsonText(e.target.value); setJsonError(""); }}
-              className="w-full rounded-xl px-5 py-4 text-sm font-mono outline-none resize-none"
-              style={{ ...inputStyle, minHeight: "60vh" }}
+              className="w-full rounded-xl px-5 py-4 text-sm font-mono outline-none resize-none min-h-[40vh] md:min-h-[60vh]"
+              style={inputStyle}
               spellCheck={false}
             />
           </div>
@@ -229,7 +229,7 @@ export default function PersonaEditor({ persona, onSave, onCancel }: PersonaEdit
         <div className="space-y-6">
           {/* 基本情報 */}
           <section>
-            <h3 className="text-xl font-bold mb-4" style={{ color: "var(--accent-hover)" }}>基本情報</h3>
+            <h3 className="text-lg md:text-xl font-bold mb-3 md:mb-4" style={{ color: "var(--accent-hover)" }}>基本情報</h3>
             <div className="space-y-3">
               <div>
                 <label className={labelClass} style={{ color: "var(--text-secondary)" }}>名前 *</label>
@@ -246,7 +246,7 @@ export default function PersonaEditor({ persona, onSave, onCancel }: PersonaEdit
 
           {/* 性格・背景 */}
           <section>
-            <h3 className="text-xl font-bold mb-4" style={{ color: "var(--accent-hover)" }}>性格・背景</h3>
+            <h3 className="text-lg md:text-xl font-bold mb-3 md:mb-4" style={{ color: "var(--accent-hover)" }}>性格・背景</h3>
             <div className="space-y-3">
               <div>
                 <label className={labelClass} style={{ color: "var(--text-secondary)" }}>性格</label>
@@ -275,8 +275,8 @@ export default function PersonaEditor({ persona, onSave, onCancel }: PersonaEdit
 
           {/* 話し方 */}
           <section>
-            <h3 className="text-xl font-bold mb-4" style={{ color: "var(--accent-hover)" }}>話し方</h3>
-            <div className="grid grid-cols-2 gap-3">
+            <h3 className="text-lg md:text-xl font-bold mb-3 md:mb-4" style={{ color: "var(--accent-hover)" }}>話し方</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <label className={labelClass} style={{ color: "var(--text-secondary)" }}>一人称</label>
                 <input
@@ -387,7 +387,7 @@ export default function PersonaEditor({ persona, onSave, onCancel }: PersonaEdit
 
           {/* 知識 */}
           <section>
-            <h3 className="text-xl font-bold mb-4" style={{ color: "var(--accent-hover)" }}>固有知識</h3>
+            <h3 className="text-lg md:text-xl font-bold mb-3 md:mb-4" style={{ color: "var(--accent-hover)" }}>固有知識</h3>
             {form.knowledge.domains.map((d, i) => (
               <div key={i} className="mb-3 p-4 rounded-lg" style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border)" }}>
                 <div className="flex justify-between items-center mb-2">
@@ -427,7 +427,7 @@ export default function PersonaEditor({ persona, onSave, onCancel }: PersonaEdit
 
           {/* 記憶 */}
           <section>
-            <h3 className="text-xl font-bold mb-4" style={{ color: "var(--accent-hover)" }}>静的記憶</h3>
+            <h3 className="text-lg md:text-xl font-bold mb-3 md:mb-4" style={{ color: "var(--accent-hover)" }}>静的記憶</h3>
             {form.memory.entries.map((entry, i) => (
               <div key={i} className="flex gap-2 mb-2">
                 <input
@@ -456,7 +456,7 @@ export default function PersonaEditor({ persona, onSave, onCancel }: PersonaEdit
 
           {/* 制約 */}
           <section>
-            <h3 className="text-xl font-bold mb-4" style={{ color: "var(--accent-hover)" }}>行動制約</h3>
+            <h3 className="text-lg md:text-xl font-bold mb-3 md:mb-4" style={{ color: "var(--accent-hover)" }}>行動制約</h3>
             {form.behavior.constraints.map((c, i) => (
               <div key={i} className="flex gap-2 mb-2">
                 <input
@@ -485,7 +485,7 @@ export default function PersonaEditor({ persona, onSave, onCancel }: PersonaEdit
 
           {/* 会話例 */}
           <section>
-            <h3 className="text-xl font-bold mb-4" style={{ color: "var(--accent-hover)" }}>会話例 (few-shot)</h3>
+            <h3 className="text-lg md:text-xl font-bold mb-3 md:mb-4" style={{ color: "var(--accent-hover)" }}>会話例 (few-shot)</h3>
             {form.examples.map((ex, i) => (
               <div key={i} className="mb-3 p-4 rounded-lg" style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border)" }}>
                 <div className="flex justify-between items-center mb-2">
@@ -533,7 +533,7 @@ export default function PersonaEditor({ persona, onSave, onCancel }: PersonaEdit
 
         )}
 
-        <div className="flex gap-4 mt-8 mb-8">
+        <div className="flex flex-col md:flex-row gap-3 md:gap-4 mt-6 md:mt-8 mb-6 md:mb-8">
           <button
             onClick={() => {
               if (editMode === "json" && jsonText) {
@@ -550,21 +550,21 @@ export default function PersonaEditor({ persona, onSave, onCancel }: PersonaEdit
               handleSave();
             }}
             disabled={saving}
-            className="px-8 py-3 rounded-xl text-lg font-medium transition-colors disabled:opacity-40"
+            className="w-full md:w-auto px-6 md:px-8 py-2.5 md:py-3 rounded-xl text-base md:text-lg font-medium transition-colors disabled:opacity-40"
             style={{ backgroundColor: "var(--accent)", color: "white" }}
           >
             {saving ? "保存中…" : "保存"}
           </button>
           <button
             onClick={onCancel}
-            className="px-8 py-3 rounded-xl text-lg font-medium transition-colors"
+            className="w-full md:w-auto px-6 md:px-8 py-2.5 md:py-3 rounded-xl text-base md:text-lg font-medium transition-colors"
             style={{ backgroundColor: "var(--bg-tertiary)", color: "var(--text-primary)" }}
           >
             キャンセル
           </button>
           <button
             onClick={handleReset}
-            className="px-8 py-3 rounded-xl text-lg font-medium transition-colors"
+            className="w-full md:w-auto px-6 md:px-8 py-2.5 md:py-3 rounded-xl text-base md:text-lg font-medium transition-colors"
             style={{ backgroundColor: "var(--bg-tertiary)", color: "var(--text-secondary)" }}
           >
             リセット

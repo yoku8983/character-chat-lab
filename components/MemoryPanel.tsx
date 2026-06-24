@@ -100,11 +100,11 @@ export default function MemoryPanel({
       onClick={onClose}
     >
       <div
-        className="h-full flex flex-col overflow-hidden"
+        className="h-full flex flex-col overflow-hidden w-full md:w-[420px]"
         style={{
-          width: "420px",
           backgroundColor: "var(--bg-primary)",
           borderLeft: "1px solid var(--border)",
+          animation: "slide-in-right 0.2s ease-out",
         }}
         onClick={(e) => e.stopPropagation()}
       >

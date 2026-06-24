@@ -66,29 +66,29 @@ export default function ConvertView({ personaId, personaName, modelId }: Convert
   };
 
   return (
-    <div className="flex flex-col px-8 py-8 gap-8" style={{ height: "calc(100% - 10rem)" }}>
+    <div className="flex flex-col px-3 md:px-8 py-4 md:py-8 gap-4 md:gap-8 h-full">
       {isChineseModel && (
-        <div className="px-4 py-2 text-center text-sm rounded-lg" style={{ backgroundColor: "#fef3c7", color: "#92400e" }}>
+        <div className="px-4 py-2 text-center text-xs md:text-sm rounded-lg" style={{ backgroundColor: "#fef3c7", color: "#92400e" }}>
           このモデルは中国企業が提供しています。個人情報やセンシティブな情報を入力しないでください。
         </div>
       )}
       <div className="text-center">
-        <h2 className="text-3xl font-bold mb-2">口調変換</h2>
-        <p className="text-lg" style={{ color: "var(--text-secondary)" }}>
+        <h2 className="text-xl md:text-3xl font-bold mb-1 md:mb-2">口調変換</h2>
+        <p className="text-sm md:text-lg" style={{ color: "var(--text-secondary)" }}>
           テキストを<span className="font-medium" style={{ color: "var(--accent-hover)" }}>{personaName}</span>の口調に変換します
         </p>
       </div>
 
-      <div className="flex flex-1 gap-6 items-stretch min-h-0">
-        <div className="flex-1 flex flex-col gap-3">
-          <label className="text-base font-medium" style={{ color: "var(--text-secondary)" }}>
+      <div className="flex flex-col md:flex-row flex-1 gap-4 md:gap-6 items-stretch min-h-0">
+        <div className="flex-1 flex flex-col gap-2 md:gap-3 min-h-[180px] md:min-h-0">
+          <label className="text-sm md:text-base font-medium" style={{ color: "var(--text-secondary)" }}>
             入力テキスト
           </label>
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="変換したいテキストを入力してください…"
-            className="flex-1 resize-none rounded-xl px-5 py-4 text-xl outline-none placeholder-gray-500"
+            className="flex-1 resize-none rounded-xl px-3 md:px-5 py-3 md:py-4 text-base md:text-xl outline-none placeholder-gray-500"
             style={{
               backgroundColor: "var(--bg-tertiary)",
               color: "var(--text-primary)",
@@ -97,14 +97,14 @@ export default function ConvertView({ personaId, personaName, modelId }: Convert
           />
         </div>
 
-        <div className="flex flex-col items-center justify-between self-stretch py-12">
+        <div className="flex flex-row md:flex-col items-center justify-center gap-3 md:justify-between md:self-stretch md:py-12">
           <button
             onClick={handleConvert}
             disabled={isConverting || !input.trim()}
-            className="rounded-full p-4 transition-colors disabled:opacity-40"
+            className="rounded-full p-3 md:p-4 transition-colors disabled:opacity-40"
             style={{ backgroundColor: "var(--accent)", color: "white" }}
           >
-            <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="rotate-90 md:rotate-0" width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
             </svg>
           </button>
@@ -122,15 +122,15 @@ export default function ConvertView({ personaId, personaName, modelId }: Convert
           </button>
         </div>
 
-        <div className="flex-1 flex flex-col gap-3">
+        <div className="flex-1 flex flex-col gap-2 md:gap-3 min-h-[180px] md:min-h-0">
           <div className="flex items-center justify-between">
-            <label className="text-base font-medium" style={{ color: "var(--text-secondary)" }}>
+            <label className="text-sm md:text-base font-medium" style={{ color: "var(--text-secondary)" }}>
               変換結果
             </label>
             {result && !isConverting && (
               <button
                 onClick={handleCopy}
-                className="text-base px-4 py-1.5 rounded transition-colors"
+                className="text-sm md:text-base px-3 md:px-4 py-1 md:py-1.5 rounded transition-colors"
                 style={{
                   backgroundColor: copied ? "#22c55e" : "var(--bg-tertiary)",
                   color: "var(--text-primary)",
@@ -142,7 +142,7 @@ export default function ConvertView({ personaId, personaName, modelId }: Convert
             )}
           </div>
           <div
-            className="flex-1 rounded-xl px-5 py-4 text-xl overflow-y-auto whitespace-pre-wrap"
+            className="flex-1 rounded-xl px-3 md:px-5 py-3 md:py-4 text-base md:text-xl overflow-y-auto whitespace-pre-wrap"
             style={{
               backgroundColor: "var(--bg-secondary)",
               color: "var(--text-primary)",
