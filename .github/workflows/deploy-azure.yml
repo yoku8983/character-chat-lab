@@ -40,17 +40,6 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Configure GHCR registry access
-        uses: azure/CLI@v2
-        with:
-          inlineScript: |
-            az containerapp registry set \
-              --name ${{ vars.CONTAINER_APP_NAME }} \
-              --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} \
-              --server ${{ env.REGISTRY }} \
-              --username ${{ github.actor }} \
-              --password ${{ secrets.GITHUB_TOKEN }}
-
       - name: Deploy to Azure Container Apps
         uses: azure/CLI@v2
         with:
