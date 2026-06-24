@@ -29,6 +29,7 @@ export default function Home() {
   const chatMessagesRef = useRef<ChatMessage[]>([]);
   const [editingPersona, setEditingPersona] = useState<Persona | undefined>(undefined);
   const [showEditor, setShowEditor] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const refreshSidebar = useCallback(() => {
     setSidebarRefreshKey((k) => k + 1);
@@ -69,10 +70,12 @@ export default function Home() {
 
   const handleSelectSession = (sessionId: string) => {
     setCurrentSessionId(sessionId);
+    setSidebarOpen(false);
   };
 
   const handleNewChat = () => {
     setCurrentSessionId(null);
+    setSidebarOpen(false);
   };
 
   const handleSessionCreated = (sessionId: string) => {
@@ -140,6 +143,8 @@ export default function Home() {
         onModeChange={handleModeChange}
         onToggleMemory={() => setShowMemory((v) => !v)}
         memoryCount={memoryCount}
+        onToggleSidebar={() => setSidebarOpen((v) => !v)}
+        showSidebarToggle={mode === "chat"}
       />
       <div className="flex flex-1 overflow-hidden">
         {mode === "chat" && (
@@ -149,6 +154,8 @@ export default function Home() {
             onSelectSession={handleSelectSession}
             onNewChat={handleNewChat}
             refreshKey={sidebarRefreshKey}
+            isOpen={sidebarOpen}
+            onClose={() => setSidebarOpen(false)}
           />
         )}
         <main className="flex-1 overflow-hidden">

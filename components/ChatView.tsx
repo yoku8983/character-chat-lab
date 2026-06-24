@@ -139,14 +139,14 @@ export default function ChatView({
   return (
     <div className="flex flex-col h-full">
       {isChineseModel && (
-        <div className="px-8 py-2 text-center text-sm" style={{ backgroundColor: "#fef3c7", color: "#92400e" }}>
+        <div className="px-3 md:px-8 py-2 text-center text-xs md:text-sm" style={{ backgroundColor: "#fef3c7", color: "#92400e" }}>
           このモデルは中国企業が提供しています。個人情報やセンシティブな情報を入力しないでください。
         </div>
       )}
-      <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6">
+      <div className="flex-1 overflow-y-auto px-3 md:px-8 py-4 md:py-6 space-y-4 md:space-y-6">
         {messages.length === 0 && (
           <div className="flex items-center justify-center h-full">
-            <p className="text-2xl" style={{ color: "var(--text-secondary)" }}>
+            <p className="text-lg md:text-2xl" style={{ color: "var(--text-secondary)" }}>
               {personaName}に話しかけてみましょう
             </p>
           </div>
@@ -157,7 +157,7 @@ export default function ChatView({
             className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
           >
             <div
-              className={`max-w-[70%] rounded-2xl px-6 py-4 ${
+              className={`max-w-[85%] md:max-w-[70%] rounded-2xl px-4 md:px-6 py-3 md:py-4 ${
                 msg.role === "user" ? "rounded-br-md" : "rounded-bl-md"
               }`}
               style={{
@@ -167,12 +167,12 @@ export default function ChatView({
               }}
             >
               {msg.role === "assistant" && (
-                <p className="text-base font-medium mb-2" style={{ color: "var(--accent-hover)" }}>
+                <p className="text-sm md:text-base font-medium mb-1 md:mb-2" style={{ color: "var(--accent-hover)" }}>
                   {personaName}
                 </p>
               )}
               <p
-                className="text-xl whitespace-pre-wrap leading-relaxed"
+                className="text-base md:text-xl whitespace-pre-wrap leading-relaxed"
                 style={{ color: msg.role === "user" ? "#ffffff" : undefined }}
               >
                 {msg.content}
@@ -186,15 +186,15 @@ export default function ChatView({
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="px-8 py-5" style={{ borderTop: "1px solid var(--border)" }}>
-        <div className="flex gap-4 items-end">
+      <div className="px-3 md:px-8 py-3 md:py-5" style={{ borderTop: "1px solid var(--border)" }}>
+        <div className="flex gap-3 md:gap-4 items-end">
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="メッセージを入力… (Shift+Enterで改行)"
             rows={2}
-            className="flex-1 resize-none rounded-xl px-5 py-4 text-xl outline-none placeholder-gray-500"
+            className="flex-1 resize-none rounded-xl px-3 md:px-5 py-3 md:py-4 text-base md:text-xl outline-none placeholder-gray-500"
             style={{
               backgroundColor: "var(--bg-tertiary)",
               color: "var(--text-primary)",
@@ -205,7 +205,7 @@ export default function ChatView({
           <button
             onClick={handleSubmit}
             disabled={isStreaming || !input.trim()}
-            className="rounded-xl px-8 py-4 text-xl font-medium transition-colors disabled:opacity-40"
+            className="rounded-xl px-5 md:px-8 py-3 md:py-4 text-base md:text-xl font-medium transition-colors disabled:opacity-40"
             style={{ backgroundColor: "var(--accent)", color: "white" }}
           >
             送信
