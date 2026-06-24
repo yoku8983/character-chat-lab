@@ -1,11 +1,7 @@
 "use client";
 
-import { Model } from "@/lib/types";
-
-interface PersonaSummary {
-  id: string;
-  name: string;
-}
+import { Model, PersonaSummary } from "@/lib/types";
+import PersonaAvatar from "./PersonaAvatar";
 
 interface HeaderProps {
   personas: PersonaSummary[];
@@ -108,6 +104,11 @@ export default function Header({
           <label className="hidden md:block text-base" style={{ color: "var(--text-secondary)" }}>
             キャラクター
           </label>
+          <PersonaAvatar
+            personaId={selectedPersona}
+            hasProfileImage={personas.find((p) => p.id === selectedPersona)?.hasProfileImage ?? false}
+            size="sm"
+          />
           <select
             value={selectedPersona}
             onChange={(e) => onPersonaChange(e.target.value)}

@@ -32,6 +32,12 @@ export interface Persona {
   examples: { user: string; assistant: string }[];
 }
 
+export interface PersonaSummary {
+  id: string;
+  name: string;
+  hasProfileImage: boolean;
+}
+
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
