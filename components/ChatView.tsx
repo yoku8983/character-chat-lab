@@ -218,9 +218,10 @@ export default function ChatView({
                         return (
                           <div key={mi} className="flex items-end gap-1.5">
                             <div
-                              className={`rounded-2xl px-3 md:px-4 py-2 md:py-3 ${isFirst ? "bubble-assistant rounded-tl-md" : ""}`}
+                              className={`rounded-xl px-3 md:px-4 py-2 md:py-3 ${isFirst ? "bubble-assistant rounded-tl-md" : ""}`}
                               style={{
                                 backgroundColor: "var(--assistant-bubble)",
+                                boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
                               }}
                             >
                               <p className="text-sm md:text-base whitespace-pre-wrap leading-relaxed" style={{ color: "var(--text-primary)" }}>
@@ -255,7 +256,7 @@ export default function ChatView({
                             </span>
                           )}
                           <div
-                            className={`rounded-2xl px-3 md:px-4 py-2 md:py-3 ${isFirst ? "bubble-user rounded-tr-md" : ""}`}
+                            className={`rounded-xl px-3 md:px-4 py-2 md:py-3 ${isFirst ? "bubble-user rounded-tr-md" : ""}`}
                             style={{
                               backgroundColor: "var(--user-bubble)",
                             }}
