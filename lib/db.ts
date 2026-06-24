@@ -77,5 +77,9 @@ async function initSchema(c: Client): Promise<void> {
     )`,
     `CREATE INDEX IF NOT EXISTS idx_memories_persona ON memories(persona_id)`,
     `CREATE INDEX IF NOT EXISTS idx_memories_importance ON memories(persona_id, importance DESC)`,
+    `CREATE TABLE IF NOT EXISTS seeded_personas (
+      id TEXT PRIMARY KEY,
+      seeded_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`,
   ]);
 }
