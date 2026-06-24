@@ -134,11 +134,17 @@ export default function PersonaEditor({ persona, personaHasProfileImage, onSave,
           return;
         }
       } else {
-        await fetch(`/api/personas/${saveData.id}`, {
+        const res = await fetch(`/api/personas/${saveData.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(saveData),
         });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: "保存に失敗しました" }));
+          setError(err.error || "保存に失敗しました");
+          setSaving(false);
+          return;
+        }
       }
       const personaId = isNew ? saveData.id : saveData.id;
 

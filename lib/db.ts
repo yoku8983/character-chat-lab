@@ -3,8 +3,13 @@ import path from "path";
 import fs from "fs";
 import { syncYamlPersonas } from "./db-personas";
 
-let client: Client | null = null;
-let initialized = false;
+const globalForDb = globalThis as unknown as {
+  __dbClient?: Client;
+  __dbInitPromise?: Promise<void>;
+};
+
+let client: Client | null = globalForDb.__dbClient ?? null;
+let initPromise: Promise<void> | null = globalForDb.__dbInitPromise ?? null;
 
 function getClient(): Client {
   if (client) return client;
@@ -25,17 +30,21 @@ function getClient(): Client {
     url,
     authToken: process.env.LIBSQL_AUTH_TOKEN,
   });
+  globalForDb.__dbClient = client;
 
   return client;
 }
 
 export async function ensureDb(): Promise<Client> {
   const c = getClient();
-  if (!initialized) {
-    await initSchema(c);
-    await syncYamlPersonas(c);
-    initialized = true;
+  if (!initPromise) {
+    initPromise = (async () => {
+      await initSchema(c);
+      await syncYamlPersonas(c);
+    })();
+    globalForDb.__dbInitPromise = initPromise;
   }
+  await initPromise;
   return c;
 }
 
