@@ -1,39 +1,46 @@
-import Database from "better-sqlite3";
+import { Client } from "@libsql/client";
 import { ChatMessage } from "./types";
 
-interface MessageRow {
-  id: number;
-  session_id: string;
-  role: string;
-  content: string;
-  created_at: string;
+export async function getMessages(client: Client, sessionId: string): Promise<ChatMessage[]> {
+  const result = await client.execute({
+    sql: "SELECT * FROM messages WHERE session_id = ? ORDER BY id ASC",
+    args: [sessionId],
+  });
+  return result.rows.map((r) => ({
+    role: r.role as "user" | "assistant",
+    content: r.content as string,
+  }));
 }
 
-export function getMessages(db: Database.Database, sessionId: string): ChatMessage[] {
-  const rows = db
-    .prepare("SELECT * FROM messages WHERE session_id = ? ORDER BY id ASC")
-    .all(sessionId) as MessageRow[];
-  return rows.map((r) => ({ role: r.role as "user" | "assistant", content: r.content }));
-}
-
-export function addMessage(
-  db: Database.Database,
+export async function addMessage(
+  client: Client,
   sessionId: string,
   role: string,
   content: string
-): void {
-  db.prepare(
-    `INSERT INTO messages (session_id, role, content, created_at) VALUES (?, ?, ?, datetime('now'))`
-  ).run(sessionId, role, content);
-  db.prepare("UPDATE sessions SET updated_at = datetime('now') WHERE id = ?").run(sessionId);
+): Promise<void> {
+  await client.batch([
+    {
+      sql: `INSERT INTO messages (session_id, role, content, created_at) VALUES (?, ?, ?, datetime('now'))`,
+      args: [sessionId, role, content],
+    },
+    {
+      sql: "UPDATE sessions SET updated_at = datetime('now') WHERE id = ?",
+      args: [sessionId],
+    },
+  ]);
 }
 
-export function autoTitle(db: Database.Database, sessionId: string, firstMessage: string): void {
-  const session = db.prepare("SELECT title FROM sessions WHERE id = ?").get(sessionId) as
-    | { title: string }
-    | undefined;
+export async function autoTitle(client: Client, sessionId: string, firstMessage: string): Promise<void> {
+  const result = await client.execute({
+    sql: "SELECT title FROM sessions WHERE id = ?",
+    args: [sessionId],
+  });
+  const session = result.rows[0];
   if (session && !session.title) {
     const title = firstMessage.length > 50 ? firstMessage.slice(0, 50) + "…" : firstMessage;
-    db.prepare("UPDATE sessions SET title = ? WHERE id = ?").run(title, sessionId);
+    await client.execute({
+      sql: "UPDATE sessions SET title = ? WHERE id = ?",
+      args: [title, sessionId],
+    });
   }
 }

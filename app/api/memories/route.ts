@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getDb } from "@/lib/db";
+import { ensureDb } from "@/lib/db";
 import { listMemories, addMemory } from "@/lib/db-memories";
 
 export async function GET(request: NextRequest) {
@@ -7,8 +7,8 @@ export async function GET(request: NextRequest) {
   if (!personaId) {
     return Response.json({ error: "personaId is required" }, { status: 400 });
   }
-  const db = getDb();
-  const memories = listMemories(db, personaId);
+  const client = await ensureDb();
+  const memories = await listMemories(client, personaId);
   return Response.json(memories);
 }
 
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "personaId and content are required" }, { status: 400 });
   }
 
-  const db = getDb();
-  const memory = addMemory(db, personaId, content, importance ?? 5, sourceSessionId);
+  const client = await ensureDb();
+  const memory = await addMemory(client, personaId, content, importance ?? 5, sourceSessionId);
   return Response.json(memory, { status: 201 });
 }
