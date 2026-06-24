@@ -9,8 +9,9 @@
   --text-secondary: #6b7f8e;
   --accent: #2a7de1;
   --accent-hover: #4a9af0;
-  --user-bubble: #2563b0;
+  --user-bubble: #5bba47;
   --assistant-bubble: #ffffff;
+  --chat-bg: #8caab9;
   --border: #d0dae3;
 }
 
@@ -45,4 +46,34 @@ body {
   select, button, input, textarea {
     font-size: 16px;
   }
+}
+
+.bubble-user {
+  position: relative;
+}
+.bubble-user::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: -8px;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 0 10px 10px;
+  border-color: transparent transparent transparent var(--user-bubble);
+}
+
+.bubble-assistant {
+  position: relative;
+}
+.bubble-assistant::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -8px;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 10px 10px 0;
+  border-color: transparent var(--assistant-bubble) transparent transparent;
 }
