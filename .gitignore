@@ -20,6 +20,9 @@ out/
 # data
 data/
 
+# deploy package
+deploy/
+
 # debug
 npm-debug.log*
 

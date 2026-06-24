@@ -1,76 +1,67 @@
-import Database from "better-sqlite3";
+import { Client, Row } from "@libsql/client";
 import { Memory } from "./types";
 
-interface MemoryRow {
-  id: number;
-  persona_id: string;
-  content: string;
-  importance: number;
-  source_session_id: string | null;
-  created_at: string;
-}
-
-function rowToMemory(row: MemoryRow): Memory {
+function rowToMemory(row: Row): Memory {
   return {
-    id: row.id,
-    personaId: row.persona_id,
-    content: row.content,
-    importance: row.importance,
-    sourceSessionId: row.source_session_id ?? undefined,
-    createdAt: row.created_at,
+    id: row.id as number,
+    personaId: row.persona_id as string,
+    content: row.content as string,
+    importance: row.importance as number,
+    sourceSessionId: (row.source_session_id as string | null) ?? undefined,
+    createdAt: row.created_at as string,
   };
 }
 
-export function listMemories(db: Database.Database, personaId: string): Memory[] {
-  const rows = db
-    .prepare(
-      "SELECT * FROM memories WHERE persona_id = ? ORDER BY importance DESC, created_at DESC"
-    )
-    .all(personaId) as MemoryRow[];
-  return rows.map(rowToMemory);
+export async function listMemories(client: Client, personaId: string): Promise<Memory[]> {
+  const result = await client.execute({
+    sql: "SELECT * FROM memories WHERE persona_id = ? ORDER BY importance DESC, created_at DESC",
+    args: [personaId],
+  });
+  return result.rows.map(rowToMemory);
 }
 
-export function getTopMemories(db: Database.Database, personaId: string, limit: number): Memory[] {
-  const rows = db
-    .prepare(
-      "SELECT * FROM memories WHERE persona_id = ? ORDER BY importance DESC, created_at DESC LIMIT ?"
-    )
-    .all(personaId, limit) as MemoryRow[];
-  return rows.map(rowToMemory);
+export async function getTopMemories(client: Client, personaId: string, limit: number): Promise<Memory[]> {
+  const result = await client.execute({
+    sql: "SELECT * FROM memories WHERE persona_id = ? ORDER BY importance DESC, created_at DESC LIMIT ?",
+    args: [personaId, limit],
+  });
+  return result.rows.map(rowToMemory);
 }
 
-export function addMemory(
-  db: Database.Database,
+export async function addMemory(
+  client: Client,
   personaId: string,
   content: string,
   importance: number,
   sourceSessionId?: string
-): Memory {
-  const result = db
-    .prepare(
-      `INSERT INTO memories (persona_id, content, importance, source_session_id, created_at)
-       VALUES (?, ?, ?, ?, datetime('now'))`
-    )
-    .run(personaId, content, importance, sourceSessionId ?? null);
-  const row = db
-    .prepare("SELECT * FROM memories WHERE id = ?")
-    .get(result.lastInsertRowid) as MemoryRow;
-  return rowToMemory(row);
+): Promise<Memory> {
+  const insertResult = await client.execute({
+    sql: `INSERT INTO memories (persona_id, content, importance, source_session_id, created_at)
+         VALUES (?, ?, ?, ?, datetime('now'))`,
+    args: [personaId, content, importance, sourceSessionId ?? null],
+  });
+  const result = await client.execute({
+    sql: "SELECT * FROM memories WHERE id = ?",
+    args: [insertResult.lastInsertRowid!],
+  });
+  return rowToMemory(result.rows[0]);
 }
 
-export function updateMemory(
-  db: Database.Database,
+export async function updateMemory(
+  client: Client,
   id: number,
   content: string,
   importance: number
-): void {
-  db.prepare("UPDATE memories SET content = ?, importance = ? WHERE id = ?").run(
-    content,
-    importance,
-    id
-  );
+): Promise<void> {
+  await client.execute({
+    sql: "UPDATE memories SET content = ?, importance = ? WHERE id = ?",
+    args: [content, importance, id],
+  });
 }
 
-export function deleteMemory(db: Database.Database, id: number): void {
-  db.prepare("DELETE FROM memories WHERE id = ?").run(id);
+export async function deleteMemory(client: Client, id: number): Promise<void> {
+  await client.execute({
+    sql: "DELETE FROM memories WHERE id = ?",
+    args: [id],
+  });
 }

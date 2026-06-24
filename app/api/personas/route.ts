@@ -1,11 +1,11 @@
-import { getDb } from "@/lib/db";
+import { ensureDb } from "@/lib/db";
 import { listPersonas, createPersona } from "@/lib/db-personas";
 import { NextRequest } from "next/server";
 import { Persona } from "@/lib/types";
 
 export async function GET() {
-  const db = getDb();
-  const personas = listPersonas(db);
+  const client = await ensureDb();
+  const personas = await listPersonas(client);
   return Response.json(personas);
 }
 
@@ -16,9 +16,9 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "id and name are required" }, { status: 400 });
   }
 
-  const db = getDb();
+  const client = await ensureDb();
   try {
-    createPersona(db, persona);
+    await createPersona(client, persona);
     return Response.json({ id: persona.id }, { status: 201 });
   } catch {
     return Response.json({ error: "Persona already exists" }, { status: 409 });

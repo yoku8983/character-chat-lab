@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getDb } from "@/lib/db";
+import { ensureDb } from "@/lib/db";
 import { updateMemory, deleteMemory } from "@/lib/db-memories";
 
 export async function PATCH(
@@ -11,8 +11,8 @@ export async function PATCH(
     content: string;
     importance: number;
   };
-  const db = getDb();
-  updateMemory(db, parseInt(id), content, importance);
+  const client = await ensureDb();
+  await updateMemory(client, parseInt(id), content, importance);
   return Response.json({ ok: true });
 }
 
@@ -21,7 +21,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const db = getDb();
-  deleteMemory(db, parseInt(id));
+  const client = await ensureDb();
+  await deleteMemory(client, parseInt(id));
   return Response.json({ ok: true });
 }

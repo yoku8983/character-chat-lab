@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getDb } from "@/lib/db";
+import { ensureDb } from "@/lib/db";
 import { addMemory } from "@/lib/db-memories";
 import { extractMemories } from "@/lib/memory-extraction";
 import { ChatMessage } from "@/lib/types";
@@ -28,10 +28,11 @@ export async function POST(request: NextRequest) {
     return Response.json({ memories: [], message: "抽出可能な記憶はありませんでした" });
   }
 
-  const db = getDb();
-  const saved = extracted.map((m) =>
-    addMemory(db, personaId, m.content, m.importance, sessionId)
-  );
+  const client = await ensureDb();
+  const saved = [];
+  for (const m of extracted) {
+    saved.push(await addMemory(client, personaId, m.content, m.importance, sessionId));
+  }
 
   return Response.json({ memories: saved });
 }
