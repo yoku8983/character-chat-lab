@@ -2,25 +2,18 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { ChatMessage } from "@/lib/types";
+import PersonaAvatar from "./PersonaAvatar";
 
 const CHINESE_MODEL_PREFIXES = ["deepseek/"];
 
 interface ChatViewProps {
   personaId: string;
   personaName: string;
+  personaHasProfileImage: boolean;
   modelId: string;
   sessionId: string | null;
   onSessionCreated: (sessionId: string) => void;
   onMessagesUpdate?: (messages: ChatMessage[]) => void;
-}
-
-function DefaultAvatar() {
-  return (
-    <svg viewBox="0 0 40 40" className="w-10 h-10 md:w-11 md:h-11 rounded-md flex-shrink-0" style={{ backgroundColor: "#c8d6df" }}>
-      <ellipse cx="20" cy="16" rx="8" ry="9" fill="#a0b4c0" />
-      <ellipse cx="20" cy="38" rx="14" ry="12" fill="#a0b4c0" />
-    </svg>
-  );
 }
 
 function formatTime(dateStr?: string): string {
@@ -57,6 +50,7 @@ function groupMessages(messages: ChatMessage[]): MessageGroup[] {
 export default function ChatView({
   personaId,
   personaName,
+  personaHasProfileImage,
   modelId,
   sessionId,
   onSessionCreated,
@@ -204,7 +198,7 @@ export default function ChatView({
               {group.role === "assistant" ? (
                 <div className="flex items-start gap-2 md:gap-3">
                   <div className="flex-shrink-0 mt-0.5">
-                    <DefaultAvatar />
+                    <PersonaAvatar personaId={personaId} hasProfileImage={personaHasProfileImage} />
                   </div>
                   <div className="flex flex-col min-w-0 max-w-[80%] md:max-w-[65%]">
                     <p className="text-xs md:text-sm font-medium mb-1 pl-1" style={{ color: "rgba(255,255,255,0.85)" }}>

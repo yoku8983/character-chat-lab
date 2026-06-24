@@ -82,4 +82,10 @@ async function initSchema(c: Client): Promise<void> {
       seeded_at TEXT NOT NULL DEFAULT (datetime('now'))
     )`,
   ]);
+
+  try {
+    await c.execute("ALTER TABLE personas ADD COLUMN profile_image TEXT");
+  } catch {
+    // カラム既存時は無視
+  }
 }

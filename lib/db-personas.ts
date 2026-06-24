@@ -2,7 +2,7 @@ import { Client, Row } from "@libsql/client";
 import fs from "fs";
 import path from "path";
 import yaml from "js-yaml";
-import { Persona } from "./types";
+import { Persona, PersonaSummary } from "./types";
 
 const PERSONAS_DIR = path.join(process.cwd(), "personas");
 
@@ -40,11 +40,14 @@ export async function syncYamlPersonas(client: Client): Promise<void> {
   }
 }
 
-export async function listPersonas(client: Client): Promise<{ id: string; name: string }[]> {
-  const result = await client.execute("SELECT id, name FROM personas ORDER BY name");
+export async function listPersonas(client: Client): Promise<PersonaSummary[]> {
+  const result = await client.execute(
+    "SELECT id, name, (profile_image IS NOT NULL) as has_image FROM personas ORDER BY name"
+  );
   return result.rows.map((row) => ({
     id: row.id as string,
     name: row.name as string,
+    hasProfileImage: Boolean(row.has_image),
   }));
 }
 
@@ -79,4 +82,27 @@ export async function deletePersona(client: Client, id: string): Promise<boolean
   if (count <= 1) return false;
   await client.execute({ sql: "DELETE FROM personas WHERE id = ?", args: [id] });
   return true;
+}
+
+export async function getPersonaImage(client: Client, id: string): Promise<string | null> {
+  const result = await client.execute({
+    sql: "SELECT profile_image FROM personas WHERE id = ?",
+    args: [id],
+  });
+  if (!result.rows[0]) return null;
+  return (result.rows[0].profile_image as string) ?? null;
+}
+
+export async function setPersonaImage(client: Client, id: string, base64WebP: string): Promise<void> {
+  await client.execute({
+    sql: "UPDATE personas SET profile_image = ?, updated_at = datetime('now') WHERE id = ?",
+    args: [base64WebP, id],
+  });
+}
+
+export async function deletePersonaImage(client: Client, id: string): Promise<void> {
+  await client.execute({
+    sql: "UPDATE personas SET profile_image = NULL, updated_at = datetime('now') WHERE id = ?",
+    args: [id],
+  });
 }

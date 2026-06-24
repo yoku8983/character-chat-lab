@@ -9,12 +9,7 @@ import MemoryPanel from "@/components/MemoryPanel";
 import PersonaList from "@/components/PersonaList";
 import PersonaEditor from "@/components/PersonaEditor";
 import { MODELS } from "@/lib/models";
-import { ChatMessage, Persona } from "@/lib/types";
-
-interface PersonaSummary {
-  id: string;
-  name: string;
-}
+import { ChatMessage, Persona, PersonaSummary } from "@/lib/types";
 
 export default function Home() {
   const [personas, setPersonas] = useState<PersonaSummary[]>([]);
@@ -119,8 +114,9 @@ export default function Home() {
     setEditingPersona(undefined);
   };
 
-  const currentPersonaName =
-    personas.find((p) => p.id === selectedPersona)?.name ?? "";
+  const currentPersona = personas.find((p) => p.id === selectedPersona);
+  const currentPersonaName = currentPersona?.name ?? "";
+  const currentPersonaHasProfileImage = currentPersona?.hasProfileImage ?? false;
 
   if (loading) {
     return (
@@ -164,6 +160,7 @@ export default function Home() {
               key={`${selectedPersona}-${currentSessionId}`}
               personaId={selectedPersona}
               personaName={currentPersonaName}
+              personaHasProfileImage={currentPersonaHasProfileImage}
               modelId={selectedModel}
               sessionId={currentSessionId}
               onSessionCreated={handleSessionCreated}
@@ -179,6 +176,11 @@ export default function Home() {
             showEditor ? (
               <PersonaEditor
                 persona={editingPersona}
+                personaHasProfileImage={
+                  editingPersona
+                    ? personas.find((p) => p.id === editingPersona.id)?.hasProfileImage ?? false
+                    : false
+                }
                 onSave={handlePersonaSaved}
                 onCancel={handlePersonaEditorCancel}
               />

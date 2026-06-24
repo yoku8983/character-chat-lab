@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Persona } from "@/lib/types";
+import { DefaultAvatarSvg } from "./PersonaAvatar";
 
 interface PersonaEditorProps {
   persona?: Persona;
+  personaHasProfileImage?: boolean;
   onSave: () => void;
   onCancel: () => void;
 }
@@ -40,7 +42,7 @@ function generateId(name: string): string {
     || "persona";
 }
 
-export default function PersonaEditor({ persona, onSave, onCancel }: PersonaEditorProps) {
+export default function PersonaEditor({ persona, personaHasProfileImage, onSave, onCancel }: PersonaEditorProps) {
   const isNew = !persona;
   const [form, setForm] = useState<Persona>(persona ?? emptyPersona());
   const [saving, setSaving] = useState(false);
@@ -52,6 +54,37 @@ export default function PersonaEditor({ persona, onSave, onCancel }: PersonaEdit
   const [endingInput, setEndingInput] = useState("");
   const [catchphraseInput, setCatchphraseInput] = useState("");
   const [showReference, setShowReference] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageRemoved, setImageRemoved] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+    };
+  }, [imagePreview]);
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      setError("画像は10MB以下にしてください");
+      return;
+    }
+    setImageFile(file);
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
+    setImagePreview(URL.createObjectURL(file));
+    setImageRemoved(false);
+  };
+
+  const handleImageRemove = () => {
+    setImageFile(null);
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
+    setImagePreview(null);
+    setImageRemoved(true);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   const handleReset = () => {
     const initial = persona ?? emptyPersona();
@@ -107,6 +140,23 @@ export default function PersonaEditor({ persona, onSave, onCancel }: PersonaEdit
           body: JSON.stringify(saveData),
         });
       }
+      const personaId = isNew ? saveData.id : saveData.id;
+
+      if (imageFile) {
+        const formData = new FormData();
+        formData.append("image", imageFile);
+        const imgRes = await fetch(`/api/personas/${personaId}/image`, {
+          method: "PUT",
+          body: formData,
+        });
+        if (!imgRes.ok) {
+          const imgErr = await imgRes.json();
+          setError(`画像のアップロードに失敗: ${imgErr.error}`);
+        }
+      } else if (imageRemoved && !isNew) {
+        await fetch(`/api/personas/${personaId}/image`, { method: "DELETE" });
+      }
+
       onSave();
     } catch {
       setError("保存に失敗しました");
@@ -240,6 +290,47 @@ export default function PersonaEditor({ persona, onSave, onCancel }: PersonaEdit
                   style={inputStyle}
                   placeholder="キャラクター名"
                 />
+              </div>
+              <div>
+                <label className={labelClass} style={{ color: "var(--text-secondary)" }}>プロフィール画像</label>
+                <div className="flex items-center gap-4">
+                  <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0" style={{ border: "1px solid var(--border)" }}>
+                    {imagePreview ? (
+                      <img src={imagePreview} className="w-full h-full object-cover" alt="" />
+                    ) : (!isNew && personaHasProfileImage && !imageRemoved) ? (
+                      <img src={`/api/personas/${form.id}/image`} className="w-full h-full object-cover" alt="" />
+                    ) : (
+                      <DefaultAvatarSvg className="w-full h-full" />
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label
+                      className="px-4 py-2 rounded-lg text-sm cursor-pointer text-center transition-colors"
+                      style={{ backgroundColor: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border)" }}
+                    >
+                      画像を選択
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/gif"
+                        className="hidden"
+                        onChange={handleImageSelect}
+                      />
+                    </label>
+                    {(imagePreview || (!isNew && personaHasProfileImage && !imageRemoved)) && (
+                      <button
+                        onClick={handleImageRemove}
+                        className="px-4 py-2 rounded-lg text-sm transition-colors"
+                        style={{ backgroundColor: "#fee2e2", color: "#dc2626" }}
+                      >
+                        画像を削除
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-xs hidden md:block" style={{ color: "var(--text-secondary)" }}>
+                    JPEG, PNG, WebP, GIF（最大10MB）
+                  </p>
+                </div>
               </div>
             </div>
           </section>

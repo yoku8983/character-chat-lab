@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Persona } from "@/lib/types";
+import { Persona, PersonaSummary } from "@/lib/types";
 import ConfirmDialog from "./ConfirmDialog";
+import PersonaAvatar from "./PersonaAvatar";
 
 interface PersonaListProps {
   onEdit: (persona: Persona) => void;
@@ -14,6 +15,7 @@ interface PersonaSummaryWithSource {
   id: string;
   name: string;
   personality: string;
+  hasProfileImage: boolean;
 }
 
 export default function PersonaList({ onEdit, onCreate, onRefresh }: PersonaListProps) {
@@ -22,7 +24,7 @@ export default function PersonaList({ onEdit, onCreate, onRefresh }: PersonaList
 
   const fetchAll = useCallback(async () => {
     const res = await fetch("/api/personas");
-    const list = (await res.json()) as { id: string; name: string }[];
+    const list = (await res.json()) as PersonaSummary[];
     const detailed = await Promise.all(
       list.map(async (p) => {
         const r = await fetch(`/api/personas/${p.id}`);
@@ -31,6 +33,7 @@ export default function PersonaList({ onEdit, onCreate, onRefresh }: PersonaList
           id: full.id,
           name: full.name,
           personality: full.identity.personality.slice(0, 80) + "…",
+          hasProfileImage: p.hasProfileImage,
         };
       })
     );
@@ -79,7 +82,10 @@ export default function PersonaList({ onEdit, onCreate, onRefresh }: PersonaList
             className="rounded-xl p-4 md:p-6"
             style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border)" }}
           >
-            <h3 className="text-xl font-bold mb-2">{p.name}</h3>
+            <div className="flex items-center gap-3 mb-2">
+              <PersonaAvatar personaId={p.id} hasProfileImage={p.hasProfileImage} size="lg" />
+              <h3 className="text-xl font-bold">{p.name}</h3>
+            </div>
             <p className="text-sm mb-4 leading-relaxed" style={{ color: "var(--text-secondary)" }}>
               {p.personality}
             </p>
