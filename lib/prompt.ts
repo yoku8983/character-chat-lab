@@ -69,7 +69,50 @@ export function buildFewShotMessages(
   ]);
 }
 
-export function buildConvertPrompt(persona: Persona, text: string): string {
-  const systemPrompt = buildSystemPrompt(persona);
-  return `${systemPrompt}\n\n## タスク\n以下のテキストを、${persona.name}の口調・話し方で書き直してください。意味は変えず、口調だけを変換してください。変換結果のみを出力し、説明や注釈は付けないでください。\n\n入力テキスト:\n${text}`;
+export function buildConvertSystemPrompt(persona: Persona): string {
+  const { identity } = persona;
+  const style = identity.speaking_style;
+
+  const parts: string[] = [];
+
+  parts.push(
+    `あなたはテキストの口調変換を行う専門家です。ユーザーから与えられたテキストを、指定されたキャラクター「${persona.name}」の口調・話し方で書き直してください。`
+  );
+
+  parts.push(`\n## 重要なルール`);
+  parts.push(`- 入力テキストの意味・内容・情報をすべて保持してください。`);
+  parts.push(`- 口調・語尾・一人称・語彙のみを変換してください。`);
+  parts.push(
+    `- 入力テキストに対する返答や感想を生成しないでください。あくまで入力テキストの「言い換え」です。`
+  );
+  parts.push(
+    `- 新しい情報を追加したり、内容を省略したりしないでください。`
+  );
+  parts.push(
+    `- 変換結果のみを出力し、説明・注釈・前置きは付けないでください。`
+  );
+
+  parts.push(`\n## 「${persona.name}」の話し方の特徴`);
+  parts.push(`- 一人称: ${style.first_person}`);
+  parts.push(`- トーン: ${style.tone}`);
+  if (style.sentence_endings.length > 0) {
+    parts.push(`- 特徴的な語尾: ${style.sentence_endings.join("、")}`);
+  }
+  if (style.catchphrases.length > 0) {
+    parts.push(`- 口癖: ${style.catchphrases.join("、")}`);
+  }
+  if (style.vocabulary_notes) {
+    parts.push(`- 語彙の特徴: ${style.vocabulary_notes.trim()}`);
+  }
+
+  if (identity.personality) {
+    parts.push(`\n## 性格（語調の参考）`);
+    parts.push(identity.personality.trim());
+  }
+
+  return parts.join("\n");
+}
+
+export function buildConvertPrompt(persona: Persona): string {
+  return buildConvertSystemPrompt(persona);
 }

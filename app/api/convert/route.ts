@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { ensureDb } from "@/lib/db";
 import { getPersona } from "@/lib/db-personas";
-import { buildConvertPrompt, buildFewShotMessages } from "@/lib/prompt";
+import { buildConvertPrompt } from "@/lib/prompt";
 
 export async function POST(request: NextRequest) {
   const apiKey = process.env.OPENROUTER_API_KEY;
@@ -28,12 +28,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const convertPrompt = buildConvertPrompt(persona, text);
-  const fewShot = buildFewShotMessages(persona);
+  const convertPrompt = buildConvertPrompt(persona);
 
   const apiMessages = [
     { role: "system", content: convertPrompt },
-    ...fewShot,
     { role: "user", content: text },
   ];
 
