@@ -40,16 +40,17 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Configure GHCR registry access
+      - name: Ensure GHCR anonymous pull (drop stale registry credential)
         uses: azure/CLI@v2
         with:
           inlineScript: |
-            az containerapp registry set \
+            # GHCR パッケージは public のため認証情報は不要。
+            # 失効済み認証情報が残っていると ImagePullUnauthorized になるため毎デプロイで除去する。
+            az containerapp registry remove \
               --name ${{ vars.CONTAINER_APP_NAME }} \
               --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} \
               --server ${{ env.REGISTRY }} \
-              --username ${{ github.actor }} \
-              --password ${{ secrets.GITHUB_TOKEN }}
+              || echo "No ${{ env.REGISTRY }} registry credential set (already clean)"
 
       - name: Deploy to Azure Container Apps
         uses: azure/CLI@v2
