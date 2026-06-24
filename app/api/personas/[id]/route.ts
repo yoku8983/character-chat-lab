@@ -13,7 +13,9 @@ export async function GET(
   if (!persona) {
     return Response.json({ error: "Persona not found" }, { status: 404 });
   }
-  return Response.json(persona);
+  return Response.json(persona, {
+    headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
+  });
 }
 
 export async function PUT(

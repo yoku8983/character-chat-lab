@@ -6,7 +6,9 @@ import { Persona } from "@/lib/types";
 export async function GET() {
   const client = await ensureDb();
   const personas = await listPersonas(client);
-  return Response.json(personas);
+  return Response.json(personas, {
+    headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
+  });
 }
 
 export async function POST(request: NextRequest) {

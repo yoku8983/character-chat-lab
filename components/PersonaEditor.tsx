@@ -145,6 +145,36 @@ export default function PersonaEditor({ persona, personaHasProfileImage, onSave,
           setSaving(false);
           return;
         }
+
+        const verifyRes = await fetch(`/api/personas/${saveData.id}`, { cache: "no-store" });
+        if (verifyRes.ok) {
+          const saved = (await verifyRes.json()) as Persona;
+          const expected = {
+            domains: saveData.knowledge?.domains?.length ?? 0,
+            entries: saveData.memory?.entries?.length ?? 0,
+            constraints: saveData.behavior?.constraints?.length ?? 0,
+            examples: saveData.examples?.length ?? 0,
+          };
+          const actual = {
+            domains: saved.knowledge?.domains?.length ?? 0,
+            entries: saved.memory?.entries?.length ?? 0,
+            constraints: saved.behavior?.constraints?.length ?? 0,
+            examples: saved.examples?.length ?? 0,
+          };
+          if (
+            actual.domains !== expected.domains ||
+            actual.entries !== expected.entries ||
+            actual.constraints !== expected.constraints ||
+            actual.examples !== expected.examples
+          ) {
+            console.error("[PersonaEditor] Save verification failed", { expected, actual });
+            setError(
+              `保存データの検証に失敗しました（期待: domains=${expected.domains}, entries=${expected.entries}, constraints=${expected.constraints}, examples=${expected.examples} / 実際: domains=${actual.domains}, entries=${actual.entries}, constraints=${actual.constraints}, examples=${actual.examples}）`
+            );
+            setSaving(false);
+            return;
+          }
+        }
       }
       const personaId = isNew ? saveData.id : saveData.id;
 

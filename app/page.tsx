@@ -31,7 +31,7 @@ export default function Home() {
   }, []);
 
   const fetchPersonas = useCallback(() => {
-    fetch("/api/personas")
+    fetch("/api/personas", { cache: "no-store" })
       .then((res) => res.json())
       .then((data: PersonaSummary[]) => {
         setPersonas(data);

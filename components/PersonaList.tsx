@@ -23,11 +23,11 @@ export default function PersonaList({ onEdit, onCreate, onRefresh }: PersonaList
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const fetchAll = useCallback(async () => {
-    const res = await fetch("/api/personas");
+    const res = await fetch("/api/personas", { cache: "no-store" });
     const list = (await res.json()) as PersonaSummary[];
     const detailed = await Promise.all(
       list.map(async (p) => {
-        const r = await fetch(`/api/personas/${p.id}`);
+        const r = await fetch(`/api/personas/${p.id}`, { cache: "no-store" });
         const full = (await r.json()) as Persona;
         return {
           id: full.id,
@@ -57,7 +57,7 @@ export default function PersonaList({ onEdit, onCreate, onRefresh }: PersonaList
   };
 
   const handleEditClick = async (id: string) => {
-    const res = await fetch(`/api/personas/${id}`);
+    const res = await fetch(`/api/personas/${id}`, { cache: "no-store" });
     const persona = (await res.json()) as Persona;
     onEdit(persona);
   };
