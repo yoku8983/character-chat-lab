@@ -80,16 +80,35 @@ az containerapp secret set \
     libsql-auth-token="your-turso-auth-token"
 ```
 
-## 3. GHCR アクセス設定（Public リポジトリの場合）
+## 3. GHCR アクセス設定（本プロジェクトは Public 運用）
 
-Public リポジトリなら GHCR のイメージも公開されるので、Container Apps から追加認証なしで pull できます。
+本プロジェクトの GHCR パッケージは **public** で運用します。public パッケージは Container Apps から**追加認証なし（匿名）で pull** できるため、**Container App にレジストリ認証情報を設定しないでください**。
 
-Private リポジトリの場合は、Container App にレジストリ認証を設定してください:
+> ⚠️ **重要**: public パッケージに対して `az containerapp registry set` で認証情報を設定すると、Azure は匿名 pull を行わずその認証情報で pull を試みます。とくに `GITHUB_TOKEN` のような一時トークンを設定すると、ワークフロー終了後にトークンが失効し、**再起動のたびに `ImagePullUnauthorized` で起動失敗**します。デプロイワークフローでは毎回 `az containerapp registry remove` で認証情報を除去し、匿名 pull を保証しています。
+
+### トラブルシュート: `ImagePullUnauthorized` が出る場合
+
+public パッケージなのに pull に失敗する場合、Container App に古い認証情報が残っている可能性があります:
+
+```bash
+# 残存している認証情報を確認（空であるべき）
+az containerapp registry list \
+  --name character-chat-lab \
+  --resource-group Kb_labo01 -o table
+
+# 残っていれば除去（除去後は匿名 pull になる）
+az containerapp registry remove \
+  --name character-chat-lab \
+  --resource-group Kb_labo01 \
+  --server ghcr.io
+```
+
+Private 運用に切り替える場合のみ、長命の PAT（`read:packages` スコープ）を使って認証情報を設定してください（`GITHUB_TOKEN` は失効するため不可）:
 
 ```bash
 az containerapp registry set \
   --name character-chat-lab \
-  --resource-group rg-character-chat-lab \
+  --resource-group Kb_labo01 \
   --server ghcr.io \
   --username YOUR_GITHUB_USERNAME \
   --password YOUR_GITHUB_PAT
