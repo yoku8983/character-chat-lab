@@ -23,6 +23,8 @@ RUN addgroup --system --gid 1001 nodejs && \
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/personas ./personas
+COPY --from=deps /app/node_modules/@libsql ./node_modules/@libsql
+COPY --from=deps /app/node_modules/libsql ./node_modules/libsql
 
 USER nextjs
 EXPOSE 3000
