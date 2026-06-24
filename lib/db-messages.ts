@@ -9,6 +9,7 @@ export async function getMessages(client: Client, sessionId: string): Promise<Ch
   return result.rows.map((r) => ({
     role: r.role as "user" | "assistant",
     content: r.content as string,
+    createdAt: r.created_at as string,
   }));
 }
 
