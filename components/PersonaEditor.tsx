@@ -118,6 +118,8 @@ export default function PersonaEditor({ persona, personaHasProfileImage, onSave,
     const saveData = { ...data };
     if (isNew) {
       saveData.id = generateId(data.name);
+    } else {
+      saveData.id = persona!.id;
     }
 
     try {
@@ -211,6 +213,9 @@ export default function PersonaEditor({ persona, personaHasProfileImage, onSave,
     if (jsonText) {
       try {
         const parsed = JSON.parse(jsonText) as Persona;
+        if (!isNew && persona) {
+          parsed.id = persona.id;
+        }
         setForm(parsed);
         setJsonError("");
       } catch {

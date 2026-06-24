@@ -68,12 +68,13 @@ export async function createPersona(client: Client, persona: Persona): Promise<v
   });
 }
 
-export async function updatePersona(client: Client, id: string, persona: Persona): Promise<void> {
-  await client.execute({
+export async function updatePersona(client: Client, id: string, persona: Persona): Promise<boolean> {
+  const result = await client.execute({
     sql: `UPDATE personas SET name = ?, definition = ?, updated_at = datetime('now')
          WHERE id = ?`,
     args: [persona.name, JSON.stringify(persona), id],
   });
+  return result.rowsAffected > 0;
 }
 
 export async function deletePersona(client: Client, id: string): Promise<boolean> {

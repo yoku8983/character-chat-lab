@@ -25,7 +25,10 @@ export async function PUT(
   const { id } = await params;
   const persona = (await request.json()) as Persona;
   const client = await ensureDb();
-  await updatePersona(client, id, persona);
+  const updated = await updatePersona(client, id, persona);
+  if (!updated) {
+    return Response.json({ error: "Persona not found" }, { status: 404 });
+  }
   return Response.json({ ok: true });
 }
 
