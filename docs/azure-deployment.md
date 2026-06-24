@@ -14,11 +14,16 @@ Azure Container Apps（Consumption プラン / スケールゼロ）+ Turso（li
 # Turso CLI インストール
 curl -sSfL https://get.tur.so/install.sh | bash
 
-# ログイン
+# ログイン（WSL 環境では --headless を付ける）
 turso auth login
+# WSL の場合: turso auth login --headless
 
-# データベース作成（東京リージョン推奨）
-turso db create character-chat-lab --location nrt
+# 利用可能なリージョンを確認
+turso db locations
+
+# データベース作成（Azure リソースグループと同じリージョンに合わせる）
+# 例: Azure が US East の場合
+turso db create character-chat-lab --location aws-us-east-1
 
 # 接続 URL を取得
 turso db show character-chat-lab --url
@@ -29,19 +34,21 @@ turso db tokens create character-chat-lab
 # → eyJhbGci...（この値を控えておく）
 ```
 
+> **リージョンの選び方:** Turso は AWS 上のサービスですが、HTTPS で接続するため Azure Container Apps からも問題なく使えます。Azure リソースグループと同じリージョン（例: Azure US East → Turso `aws-us-east-1`）を選ぶとレイテンシが最小になります。
+
 ## 2. Azure リソースの作成
 
-Azure Portal または CLI で以下を作成します。
+Azure Portal または CLI で以下を作成します。リージョンは既存のリソースグループに合わせてください。
 
 ```bash
-# リソースグループ
-az group create --name rg-character-chat-lab --location japaneast
+# リソースグループ（既存のものを使う場合はスキップ）
+az group create --name rg-character-chat-lab --location eastus
 
 # Container Apps 環境
 az containerapp env create \
   --name cae-character-chat-lab \
   --resource-group rg-character-chat-lab \
-  --location japaneast
+  --location eastus
 
 # Container App（初回は仮イメージで作成）
 az containerapp create \
