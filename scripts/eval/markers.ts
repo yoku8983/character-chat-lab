@@ -1,7 +1,19 @@
 import { Persona } from "../../lib/types";
 
+// 装飾表記（波ダッシュ・ふりがな括弧）を除いた実マッチ候補を返す
+function normalizeMarker(raw: string): string[] {
+  const s = raw.replace(/[〜～~]/g, "").trim();
+  if (!s) return [];
+  // "私（わたし）" のような括弧付きふりがな → 括弧前と括弧内の両方を候補に
+  const paren = s.match(/^(.*?)[（(]([^）)]*)[）)]\s*$/);
+  if (paren) {
+    return [paren[1].trim(), paren[2].trim()].filter((c) => c.length > 0);
+  }
+  return [s];
+}
+
 export interface Markers {
-  firstPerson: string;
+  firstPerson: string[];
   sentenceEndings: string[];
   catchphrases: string[];
 }
@@ -9,9 +21,9 @@ export interface Markers {
 export function deriveMarkers(persona: Persona): Markers {
   const style = persona.identity.speaking_style;
   return {
-    firstPerson: style.first_person,
-    sentenceEndings: style.sentence_endings ?? [],
-    catchphrases: style.catchphrases ?? [],
+    firstPerson: normalizeMarker(style.first_person),
+    sentenceEndings: (style.sentence_endings ?? []).flatMap(normalizeMarker),
+    catchphrases: (style.catchphrases ?? []).flatMap(normalizeMarker),
   };
 }
 
@@ -22,9 +34,9 @@ export interface TurnHit {
 }
 
 export function scoreText(text: string, m: Markers): TurnHit {
-  const hasFirstPerson = m.firstPerson.length > 0 && text.includes(m.firstPerson);
-  const hasSentenceEnding = m.sentenceEndings.some((e) => e.length > 0 && text.includes(e));
-  const hasCatchphrase = m.catchphrases.some((c) => c.length > 0 && text.includes(c));
+  const hasFirstPerson = m.firstPerson.some((c) => text.includes(c));
+  const hasSentenceEnding = m.sentenceEndings.some((e) => text.includes(e));
+  const hasCatchphrase = m.catchphrases.some((c) => text.includes(c));
   return { hasFirstPerson, hasSentenceEnding, hasCatchphrase };
 }
 
