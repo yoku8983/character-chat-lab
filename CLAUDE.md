@@ -28,7 +28,8 @@ AIキャラクターの人格・口調・固有知識・長期記憶を定義し
 ### 仕様書の場所
 - MVP1 の仕様・DONE 定義: `docs/mvp1-spec.md`
 - MVP2 の仕様・DONE 定義: `docs/mvp2-spec.md`
+- Issue #20（コンテキスト戦略・コスト最適化）の仕様: `docs/issue20-improvements-spec.md`
 - ロードマップ: `docs/roadmap.md`
 
 ## 現在のフェーズ
-MVP2 完了。改善・バグ修正フェーズ。
+MVP2 完了。改善・バグ修正フェーズ（Issue #20 の T1〜T7 完了済み）。
