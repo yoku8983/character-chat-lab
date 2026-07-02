@@ -12,8 +12,8 @@
 
 1. ~~**T1: usage 実測ログ基盤**（最高）~~ ✅ 完了（`feat/t1-usage-log`。詳細は末尾「完了済み」）
 2. ~~**T2: 会話履歴の上限管理**（最高）~~ ✅ 完了（`feat/t2-history-cap`。詳細は末尾「完了済み」）
-3. **T3: 記憶抽出の重複防止**（高）— 抽出プロンプトに既存記憶を渡す ← 次はこれ
-4. T4: 評価基盤（multi-turn 必須・Judge は別系統モデル）
+3. ~~**T3: 記憶抽出の重複防止**（高）~~ ✅ 完了（`feat/t3-dedup-memory`。詳細は末尾「完了済み」）
+4. T4: 評価基盤（multi-turn 必須・Judge は別系統モデル） ← 次はこれ
 5. T5: モデル × temperature 実験
 6. T6: ペルソナデータ品質改善 / T7: プロンプト構造のキャッシュ最適化
 7. 動的コンテキスト選択は**封印**（解除条件は Issue #20 参照。実装しないこと）
@@ -55,6 +55,11 @@
 
 ## 完了済み（直近）
 
+- 2026-07-02: **T3 記憶抽出の重複防止 完了**（ブランチ `feat/t3-dedup-memory`）
+  - `lib/memory-extraction.ts`: `extractMemories` に第4引数 `existingMemories: string[] = []` を追加。静的 `EXTRACTION_PROMPT` を先頭に維持し、既存記憶がある場合のみ「既にある記憶（重複抽出の禁止）」ブロックを後ろに動的付加（同一・言い換え・部分集合は抽出しない指示）
+  - `app/api/memories/extract/route.ts`: `ensureDb()`→`listMemories` で既存記憶を取得してから抽出に渡すよう順序変更。さらに保険として addMemory ループ前に**完全一致の重複ガード**（trim 済み content の Set で既存＋バッチ内重複をスキップ）。usage 記録（T1）はそのまま維持
+  - 既存重複データのクリーンアップ: 記憶パネル `components/MemoryPanel.tsx` に個別削除があり**手動削除で足りる**ことを確認（バルク削除ツールは YAGNI で不要）。Embedding 等の曖昧重複判定は封印どおり不実装
+  - 検証: dev で同一会話に extract を 2 回実行 → 1 回目 3 件保存、2 回目 0 件（LLM が既存記憶を見て新情報なしと判断＝プロンプト方式が機能）、記憶件数は 3 のまま
 - 2026-07-02: **T2 会話履歴の上限管理 完了**（ブランチ `feat/t2-history-cap`）
   - `lib/history.ts` 新設: `capMessageHistory(messages, maxMessages)` — 直近 N 件に丸め、カット後の履歴が user 発話始まりになるよう調整（user/assistant のペア境界を維持）
   - `app/api/chat/route.ts`: 環境変数 `CHAT_MAX_HISTORY_MESSAGES`（未設定・不正値なら既定 30）で上限を読み、apiMessages 構築時にカット適用。system プロンプト+few-shot は固定プレフィクスとして常に維持（キャッシュ整合のため並び・内容は不変）

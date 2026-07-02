@@ -37,13 +37,19 @@ export interface ExtractMemoriesResult {
 export async function extractMemories(
   messages: ChatMessage[],
   apiKey: string,
-  modelId: string
+  modelId: string,
+  existingMemories: string[] = []
 ): Promise<ExtractMemoriesResult> {
   const recentMessages = messages.slice(-20);
 
   const conversationText = recentMessages
     .map((m) => `${m.role === "user" ? "ユーザー" : "アシスタント"}: ${m.content}`)
     .join("\n");
+
+  const systemContent =
+    existingMemories.length > 0
+      ? `${EXTRACTION_PROMPT}\n\n## 既にある記憶（重複抽出の禁止）\n以下はこのキャラクターが既に記憶している情報です。これらと同一・言い換え・部分集合にすぎない情報は新しい記憶として抽出しないでください。まだ記録されていない新情報、または既存より明確に具体的な更新のみを抽出してください。\n${existingMemories.map((m) => `- ${m}`).join("\n")}`
+      : EXTRACTION_PROMPT;
 
   const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
@@ -54,7 +60,7 @@ export async function extractMemories(
     body: JSON.stringify({
       model: modelId,
       messages: [
-        { role: "system", content: EXTRACTION_PROMPT },
+        { role: "system", content: systemContent },
         { role: "user", content: conversationText },
       ],
     }),
