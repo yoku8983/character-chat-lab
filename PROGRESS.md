@@ -13,8 +13,8 @@
 1. ~~**T1: usage 実測ログ基盤**（最高）~~ ✅ 完了（`feat/t1-usage-log`。詳細は末尾「完了済み」）
 2. ~~**T2: 会話履歴の上限管理**（最高）~~ ✅ 完了（`feat/t2-history-cap`。詳細は末尾「完了済み」）
 3. ~~**T3: 記憶抽出の重複防止**（高）~~ ✅ 完了（`feat/t3-dedup-memory`。詳細は末尾「完了済み」）
-4. T4: 評価基盤（multi-turn 必須・Judge は別系統モデル） ← 次はこれ
-5. T5: モデル × temperature 実験
+4. ~~T4: 評価基盤（multi-turn 必須・Judge は別系統モデル）~~ ✅ 完了（`feat/t4-eval-harness`。詳細は末尾「完了済み」）
+5. T5: モデル × temperature 実験 ← 次はこれ（T4 ハーネスを使う）
 6. T6: ペルソナデータ品質改善 / T7: プロンプト構造のキャッシュ最適化
 7. 動的コンテキスト選択は**封印**（解除条件は Issue #20 参照。実装しないこと）
 
@@ -55,6 +55,19 @@
 
 ## 完了済み（直近）
 
+- 2026-07-03: **T4 評価基盤（multi-turn 会話ハーネス）完了**（ブランチ `feat/t4-eval-harness`）
+  - スタンドアロン CLI `scripts/eval/`（`tsx` を devDep 追加。`npm run eval` / `npm run eval:compare`）。アプリ本体（app/・lib/）は無変更で、`lib/personas`・`lib/prompt`・`lib/history` を相対 import で再利用
+  - 構成: `scenarios.ts`（10 本×各16ターン・ペルソナ非依存・軸網羅）/ `markers.ts`（persona の speaking_style から一人称・語尾・口癖マーカーを導出、early/late 1/3 で出現率とドリフト delta を算出）/ `judge.ts`（LLM-as-Judge。口調一貫性・知識活用度・人格維持・自然さを 1〜5 で採点）/ `openrouter.ts`（非ストリーミング＋429/5xx リトライ）/ `report.ts`（`eval/reports/` に JSON 出力・gitignore 済み）/ `compare.ts`（Before/After 差分）
+  - **設計判断（ユーザー確定）**: パイロットキャラはサンプル（mira/tetsu-oyaji）ではなく**本番デプロイ版の実キャラ JSON を `--persona-file` で与えて評価**する（サンプルは実在キャラとの正確性を測れないため）。**本番 JSON をローカルで評価する際は Main→Azure デプロイ版とローカル開発版のプロンプト構築ロジック等の環境差分に注意**（README にも明記）
+  - Judge は `google/gemini-3.1-flash-lite`（被評価 DeepSeek と別系統。推奨モデル一覧内。env `EVAL_JUDGE_MODEL` で変更可）
+  - **実データで判明したハーネス不具合を修正**（同 PR に含む）: 本番ペルソナは `first_person: "私（わたし）"`・`sentence_endings: "〜のだよ"` のような装飾表記（ふりがな括弧・波ダッシュ）を持ち、完全一致 includes では実応答（「私」「のだよ」）に当たらず出現率が誤って 0% になった。`markers.ts` に `normalizeMarker`（波ダッシュ除去＋括弧前/括弧内の両候補化）を追加して解消
+  - **本評価（baseline）実測済み**: 本番実キャラ1体 × DeepSeek V4 Flash × 全10シナリオ×16ターン、maxHistory=30。総コスト **$0.040**。結果:
+    - **口調ドリフトはほぼ検出されず**。一人称 early→late 72%→78%（delta +6%）、語尾 68%→70%（delta +2%）＝後半でも口調は維持（T2 の履歴上限 30 が効いている可能性）
+    - LLM-as-Judge（Gemini）平均: 口調一貫性 5.00 / 知識活用度 4.90 / 人格維持 5.00 / 自然さ 5.00（ほぼ満点、劣化なし）
+    - 「短い応答を促す」シナリオのみマーカー出現率が低い（一言回答では一人称・語尾が出ないため。ドリフトではなく仕様）
+    - 含意: **この構成（Flash + 30上限 + 16ターン）では口調崩れは顕在化しない**。T5 で他モデル/temperature を振り compare で差を見る際の基準になる（ただし baseline レポートは本番キャラ参照のため削除済み・要再取得）
+  - **本番ペルソナ JSON の取り扱い**: リポジトリ外（スクラッチパッド）で評価し、テスト後に JSON・レポートとも削除。`eval/reports/` は gitignore 済みで Push されない。リポジトリ内に本番キャラの痕跡は残していない
+  - 次アクション（T5）: 本番 JSON を再度用意 → `npm run eval -- --persona-file <path> --model <各モデル> --temperature <値>` で複数取得 → `npm run eval:compare <before> <after>` で品質/コスト比較
 - 2026-07-02: **T3 記憶抽出の重複防止 完了**（ブランチ `feat/t3-dedup-memory`）
   - `lib/memory-extraction.ts`: `extractMemories` に第4引数 `existingMemories: string[] = []` を追加。静的 `EXTRACTION_PROMPT` を先頭に維持し、既存記憶がある場合のみ「既にある記憶（重複抽出の禁止）」ブロックを後ろに動的付加（同一・言い換え・部分集合は抽出しない指示）
   - `app/api/memories/extract/route.ts`: `ensureDb()`→`listMemories` で既存記憶を取得してから抽出に渡すよう順序変更。さらに保険として addMemory ループ前に**完全一致の重複ガード**（trim 済み content の Set で既存＋バッチ内重複をスキップ）。usage 記録（T1）はそのまま維持
