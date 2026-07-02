@@ -38,17 +38,24 @@ export function buildSystemPrompt(persona: Persona, episodicMemories?: string[])
     }
   }
 
-  if (episodicMemories && episodicMemories.length > 0) {
-    parts.push(`\n## エピソード記憶（過去の会話から）`);
-    for (const mem of episodicMemories) {
-      parts.push(`- ${mem}`);
-    }
-  }
-
   if (behavior.constraints.length > 0) {
     parts.push(`\n## 行動制約`);
     for (const constraint of behavior.constraints) {
       parts.push(`- ${constraint}`);
+    }
+  }
+
+  if (persona.anti_examples && persona.anti_examples.length > 0) {
+    parts.push(`\n## こう応答してはいけない（悪い例）`);
+    for (const ex of persona.anti_examples) {
+      parts.push(`- 「${ex.user}」に対して『${ex.assistant}』のような応答はしない`);
+    }
+  }
+
+  if (episodicMemories && episodicMemories.length > 0) {
+    parts.push(`\n## エピソード記憶（過去の会話から）`);
+    for (const mem of episodicMemories) {
+      parts.push(`- ${mem}`);
     }
   }
 

@@ -1,4 +1,5 @@
 import { Client, Row } from "@libsql/client";
+import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import yaml from "js-yaml";
@@ -13,28 +14,52 @@ export async function syncYamlPersonas(client: Client): Promise<void> {
     .readdirSync(PERSONAS_DIR)
     .filter((f) => f.endsWith(".yaml") || f.endsWith(".yml"));
 
-  // 過去に一度シードした YAML ペルソナの ID 一覧
-  const seededResult = await client.execute("SELECT id FROM seeded_personas");
-  const seeded = new Set(seededResult.rows.map((row) => row.id as string));
+  // 過去に一度シードした YAML ペルソナの ID → content_hash マップ
+  // ハッシュが一致すればスキップ、相違すれば source='yaml' の行のみ再反映する
+  // （source='db' は UI 作成ペルソナ保護のため対象外。ユーザーが削除済みなら 0 行更新で復活しない）
+  const seededResult = await client.execute("SELECT id, content_hash FROM seeded_personas");
+  const seeded = new Map(
+    seededResult.rows.map((row) => [row.id as string, row.content_hash as string | null])
+  );
 
   for (const file of files) {
     const content = fs.readFileSync(path.join(PERSONAS_DIR, file), "utf-8");
     const persona = yaml.load(content) as Persona;
+    const contentHash = crypto.createHash("sha256").update(content).digest("hex");
 
-    // 一度シード済みの YAML は再投入しない（ユーザーが削除したら復活させない）
-    if (seeded.has(persona.id)) continue;
+    if (!seeded.has(persona.id)) {
+      // 未シード: 新規投入
+      await client.batch([
+        {
+          sql: `INSERT INTO personas (id, name, definition, source, created_at, updated_at)
+                VALUES (?, ?, ?, 'yaml', datetime('now'), datetime('now'))
+                ON CONFLICT(id) DO NOTHING`,
+          args: [persona.id, persona.name, JSON.stringify(persona)],
+        },
+        {
+          sql: `INSERT INTO seeded_personas (id, content_hash) VALUES (?, ?)
+                ON CONFLICT(id) DO NOTHING`,
+          args: [persona.id, contentHash],
+        },
+      ]);
+      continue;
+    }
 
+    if (seeded.get(persona.id) === contentHash) {
+      // ハッシュ一致: 変更なしのためスキップ
+      continue;
+    }
+
+    // ハッシュ相違（YAML が更新された）: source='yaml' の行のみ再反映
     await client.batch([
       {
-        sql: `INSERT INTO personas (id, name, definition, source, created_at, updated_at)
-              VALUES (?, ?, ?, 'yaml', datetime('now'), datetime('now'))
-              ON CONFLICT(id) DO NOTHING`,
-        args: [persona.id, persona.name, JSON.stringify(persona)],
+        sql: `UPDATE personas SET name = ?, definition = ?, updated_at = datetime('now')
+              WHERE id = ? AND source = 'yaml'`,
+        args: [persona.name, JSON.stringify(persona), persona.id],
       },
       {
-        sql: `INSERT INTO seeded_personas (id) VALUES (?)
-              ON CONFLICT(id) DO NOTHING`,
-        args: [persona.id],
+        sql: `UPDATE seeded_personas SET content_hash = ? WHERE id = ?`,
+        args: [contentHash, persona.id],
       },
     ]);
   }
@@ -69,6 +94,7 @@ export async function createPersona(client: Client, persona: Persona): Promise<v
 }
 
 export async function updatePersona(client: Client, id: string, persona: Persona): Promise<boolean> {
+  // source の昇格はしない: UI 編集した source='yaml' ペルソナは次回 YAML 更新（ハッシュ相違）で上書きされ得る（設計上の割り切り）
   const result = await client.execute({
     sql: `UPDATE personas SET name = ?, definition = ?, updated_at = datetime('now')
          WHERE id = ?`,

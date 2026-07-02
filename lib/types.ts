@@ -30,6 +30,7 @@ export interface Persona {
     constraints: string[];
   };
   examples: { user: string; assistant: string }[];
+  anti_examples?: { user: string; assistant: string }[];
 }
 
 export interface PersonaSummary {

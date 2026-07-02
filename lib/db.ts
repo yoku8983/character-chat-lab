@@ -111,4 +111,10 @@ async function initSchema(c: Client): Promise<void> {
   } catch {
     // カラム既存時は無視
   }
+
+  try {
+    await c.execute("ALTER TABLE seeded_personas ADD COLUMN content_hash TEXT");
+  } catch {
+    // カラム既存時は無視
+  }
 }
