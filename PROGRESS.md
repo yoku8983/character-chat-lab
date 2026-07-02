@@ -11,8 +11,8 @@
 ## 次にやること（Issue #20 のタスク、優先順）
 
 1. ~~**T1: usage 実測ログ基盤**（最高）~~ ✅ 完了（`feat/t1-usage-log`。詳細は末尾「完了済み」）
-2. **T2: 会話履歴の上限管理**（最高）— chat route で全量送信している履歴をカット ← 次はこれ
-3. **T3: 記憶抽出の重複防止**（高）— 抽出プロンプトに既存記憶を渡す
+2. ~~**T2: 会話履歴の上限管理**（最高）~~ ✅ 完了（`feat/t2-history-cap`。詳細は末尾「完了済み」）
+3. **T3: 記憶抽出の重複防止**（高）— 抽出プロンプトに既存記憶を渡す ← 次はこれ
 4. T4: 評価基盤（multi-turn 必須・Judge は別系統モデル）
 5. T5: モデル × temperature 実験
 6. T6: ペルソナデータ品質改善 / T7: プロンプト構造のキャッシュ最適化
@@ -55,6 +55,13 @@
 
 ## 完了済み（直近）
 
+- 2026-07-02: **T2 会話履歴の上限管理 完了**（ブランチ `feat/t2-history-cap`）
+  - `lib/history.ts` 新設: `capMessageHistory(messages, maxMessages)` — 直近 N 件に丸め、カット後の履歴が user 発話始まりになるよう調整（user/assistant のペア境界を維持）
+  - `app/api/chat/route.ts`: 環境変数 `CHAT_MAX_HISTORY_MESSAGES`（未設定・不正値なら既定 30）で上限を読み、apiMessages 構築時にカット適用。system プロンプト+few-shot は固定プレフィクスとして常に維持（キャッシュ整合のため並び・内容は不変）
+  - `.env.example` に `CHAT_MAX_HISTORY_MESSAGES` を追記
+  - 対象は chat route のみ。convert（単発 text）/ extract（独自 slice 済み）は対象外。古い履歴の要約注入は Issue #20 方針どおり未実施
+  - 検証: 純粋関数を単体コンパイルして 9 ケース直接検証（上限以下は素通し／超過時の user・assistant 境界／最新保持／0・負・NaN）＋ dev で 59 件履歴の実送信で 200・キャラ応答・エラー無し
+  - **申し送り**: カットは LLM 送信時のみで、クライアント表示（ChatView は全履歴保持）や DB 保存には影響しない。初期値 30 は T1 の usage ログを見て調整余地あり
 - 2026-07-02: **T1 usage 実測ログ基盤 完了**（ブランチ `feat/t1-usage-log`）
   - `usage_log` テーブル新設（route / session_id / persona_id / model_id / prompt_tokens / completion_tokens / cached_tokens / cost / created_at）
   - chat / convert / memories/extract の 3 route で OpenRouter の usage を記録（リクエスト body に `usage: { include: true }`、ストリーム最終チャンクから捕捉。記録は try/catch で応答を止めない）
