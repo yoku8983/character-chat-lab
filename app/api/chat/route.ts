@@ -5,6 +5,7 @@ import { getTopMemories } from "@/lib/db-memories";
 import { buildSystemPrompt, buildFewShotMessages } from "@/lib/prompt";
 import { capMessageHistory, DEFAULT_MAX_HISTORY_MESSAGES } from "@/lib/history";
 import { ChatMessage } from "@/lib/types";
+import { recordUsage, usageFromOpenRouter } from "@/lib/db-usage-log";
 
 export async function POST(request: NextRequest) {
   const apiKey = process.env.OPENROUTER_API_KEY;
@@ -16,10 +17,11 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { personaId, modelId, messages } = body as {
+  const { personaId, modelId, messages, sessionId } = body as {
     personaId: string;
     modelId: string;
     messages: ChatMessage[];
+    sessionId?: string;
   };
 
   const client = await ensureDb();
@@ -57,6 +59,7 @@ export async function POST(request: NextRequest) {
         model: modelId,
         messages: apiMessages,
         stream: true,
+        usage: { include: true },
       }),
     }
   );
@@ -79,6 +82,8 @@ export async function POST(request: NextRequest) {
       }
       const decoder = new TextDecoder();
       let buffer = "";
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let capturedUsage: any = null;
 
       try {
         while (true) {
@@ -101,6 +106,9 @@ export async function POST(request: NextRequest) {
               if (content) {
                 controller.enqueue(encoder.encode(content));
               }
+              if (parsed.usage) {
+                capturedUsage = parsed.usage;
+              }
             } catch {
               // skip malformed JSON
             }
@@ -108,6 +116,25 @@ export async function POST(request: NextRequest) {
         }
       } finally {
         controller.close();
+        if (capturedUsage) {
+          try {
+            const u = usageFromOpenRouter(capturedUsage);
+            if (u) {
+              await recordUsage(client, {
+                route: "chat",
+                sessionId: sessionId ?? null,
+                personaId,
+                modelId,
+                promptTokens: u.promptTokens,
+                completionTokens: u.completionTokens,
+                cachedTokens: u.cachedTokens,
+                cost: u.cost,
+              });
+            }
+          } catch (err) {
+            console.error("Failed to record usage:", err);
+          }
+        }
       }
     },
   });
