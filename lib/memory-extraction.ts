@@ -28,11 +28,17 @@ export interface ExtractedMemory {
   importance: number;
 }
 
+export interface ExtractMemoriesResult {
+  memories: ExtractedMemory[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  usage: any;
+}
+
 export async function extractMemories(
   messages: ChatMessage[],
   apiKey: string,
   modelId: string
-): Promise<ExtractedMemory[]> {
+): Promise<ExtractMemoriesResult> {
   const recentMessages = messages.slice(-20);
 
   const conversationText = recentMessages
@@ -54,22 +60,24 @@ export async function extractMemories(
     }),
   });
 
-  if (!response.ok) return [];
+  if (!response.ok) return { memories: [], usage: null };
 
   const data = await response.json();
   const text = data.choices?.[0]?.message?.content ?? "";
+  const usage = data.usage ?? null;
 
   try {
     const match = text.match(/\[[\s\S]*\]/);
-    if (!match) return [];
+    if (!match) return { memories: [], usage };
     const parsed = JSON.parse(match[0]) as ExtractedMemory[];
-    return parsed
+    const memories = parsed
       .filter((m) => m.content && typeof m.importance === "number")
       .map((m) => ({
         content: m.content,
         importance: Math.max(1, Math.min(10, Math.round(m.importance))),
       }));
+    return { memories, usage };
   } catch {
-    return [];
+    return { memories: [], usage };
   }
 }

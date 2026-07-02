@@ -127,7 +127,7 @@ export default function ChatView({
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ personaId, modelId, messages: newMessages }),
+        body: JSON.stringify({ personaId, modelId, messages: newMessages, sessionId: sid }),
       });
 
       if (!response.ok) {

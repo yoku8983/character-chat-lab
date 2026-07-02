@@ -90,6 +90,20 @@ async function initSchema(c: Client): Promise<void> {
       id TEXT PRIMARY KEY,
       seeded_at TEXT NOT NULL DEFAULT (datetime('now'))
     )`,
+    `CREATE TABLE IF NOT EXISTS usage_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      route TEXT NOT NULL,
+      session_id TEXT,
+      persona_id TEXT,
+      model_id TEXT NOT NULL,
+      prompt_tokens INTEGER NOT NULL DEFAULT 0,
+      completion_tokens INTEGER NOT NULL DEFAULT 0,
+      cached_tokens INTEGER NOT NULL DEFAULT 0,
+      cost REAL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_usage_log_created ON usage_log(created_at DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_usage_log_model ON usage_log(model_id)`,
   ]);
 
   try {
