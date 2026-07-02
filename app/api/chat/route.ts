@@ -3,6 +3,7 @@ import { ensureDb } from "@/lib/db";
 import { getPersona } from "@/lib/db-personas";
 import { getTopMemories } from "@/lib/db-memories";
 import { buildSystemPrompt, buildFewShotMessages } from "@/lib/prompt";
+import { capMessageHistory, DEFAULT_MAX_HISTORY_MESSAGES } from "@/lib/history";
 import { ChatMessage } from "@/lib/types";
 
 export async function POST(request: NextRequest) {
@@ -34,10 +35,14 @@ export async function POST(request: NextRequest) {
   const systemPrompt = buildSystemPrompt(persona, episodicMemories);
   const fewShot = buildFewShotMessages(persona);
 
+  const parsedMax = parseInt(process.env.CHAT_MAX_HISTORY_MESSAGES ?? "", 10);
+  const maxHistory = Number.isFinite(parsedMax) && parsedMax > 0 ? parsedMax : DEFAULT_MAX_HISTORY_MESSAGES;
+  const cappedMessages = capMessageHistory(messages, maxHistory);
+
   const apiMessages = [
     { role: "system", content: systemPrompt },
     ...fewShot,
-    ...messages.map((m) => ({ role: m.role, content: m.content })),
+    ...cappedMessages.map((m) => ({ role: m.role, content: m.content })),
   ];
 
   const response = await fetch(
