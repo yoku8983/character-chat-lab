@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { ensureDb } from "@/lib/db";
-import { addMemory } from "@/lib/db-memories";
+import { addMemory, listMemories } from "@/lib/db-memories";
 import { extractMemories } from "@/lib/memory-extraction";
 import { recordUsage, usageFromOpenRouter } from "@/lib/db-usage-log";
 import { ChatMessage } from "@/lib/types";
@@ -23,9 +23,14 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "personaId, modelId, and messages are required" }, { status: 400 });
   }
 
-  const { memories: extracted, usage } = await extractMemories(messages, apiKey, modelId);
-
   const client = await ensureDb();
+  const existing = await listMemories(client, personaId);
+  const { memories: extracted, usage } = await extractMemories(
+    messages,
+    apiKey,
+    modelId,
+    existing.map((m) => m.content)
+  );
 
   try {
     const u = usageFromOpenRouter(usage);
@@ -49,8 +54,12 @@ export async function POST(request: NextRequest) {
     return Response.json({ memories: [], message: "抽出可能な記憶はありませんでした" });
   }
 
+  const seen = new Set(existing.map((m) => m.content.trim()));
   const saved = [];
   for (const m of extracted) {
+    const key = m.content.trim();
+    if (seen.has(key)) continue; // 既存 or バッチ内重複はスキップ
+    seen.add(key);
     saved.push(await addMemory(client, personaId, m.content, m.importance, sessionId));
   }
 
