@@ -23,6 +23,9 @@ data/
 # deploy package
 deploy/
 
+# eval reports (成果物のため追跡しない)
+eval/reports/
+
 # debug
 npm-debug.log*
 

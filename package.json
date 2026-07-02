@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "eval": "tsx scripts/eval/run.ts",
+    "eval:compare": "tsx scripts/eval/compare.ts"
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",
@@ -23,6 +25,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "tailwindcss": "^4.0.0",
+    "tsx": "^4.22.5",
     "typescript": "^5.7.0"
   }
 }
