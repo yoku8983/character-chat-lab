@@ -1,13 +1,10 @@
 import { loadEnv } from "./env";
-import { chatCompletion } from "./openrouter";
 import { loadPersonaSource } from "./persona-loader";
-import { deriveMarkers, scoreText, computeDrift, TurnHit } from "./markers";
+import { deriveMarkers } from "./markers";
 import { SCENARIOS } from "./scenarios";
-import { judgeConversation } from "./judge";
-import { writeReport, printSummary, computeAggregate, EvalReport, ScenarioResult } from "./report";
+import { writeReport, printSummary } from "./report";
+import { runEval } from "./harness";
 import { buildSystemPrompt, buildFewShotMessages } from "../../lib/prompt";
-import { capMessageHistory } from "../../lib/history";
-import { ChatMessage } from "../../lib/types";
 
 const DEFAULT_MODEL = "deepseek/deepseek-v4-flash";
 const DEFAULT_JUDGE_MODEL = "google/gemini-3.1-flash-lite";
@@ -115,95 +112,21 @@ async function main(): Promise<void> {
       ? SCENARIOS.slice(0, args.scenariosCount)
       : SCENARIOS;
 
-  const scenarioResults: ScenarioResult[] = [];
-  let totalCost: number | null = null;
-  let skippedCount = 0;
-
   console.log(`評価開始: persona=${persona.id} model=${args.model} judge=${args.judgeModel} scenarios=${scenarios.length}本`);
 
-  for (const scenario of scenarios) {
-    const userTurns =
-      args.maxTurns !== null && Number.isFinite(args.maxTurns) && args.maxTurns > 0
-        ? scenario.userTurns.slice(0, args.maxTurns)
-        : scenario.userTurns;
-
-    console.log(`\n--- シナリオ: ${scenario.id} (${scenario.axis}) ---`);
-
-    try {
-      const history: ChatMessage[] = [];
-      const hits: TurnHit[] = [];
-
-      for (const userTurn of userTurns) {
-        history.push({ role: "user", content: userTurn });
-
-        // capMessageHistory は maxHistory<=0 を「無制限」として扱う（lib/history.ts の既存仕様）
-        const capped = capMessageHistory(history, args.maxHistory);
-        const apiMessages = [
-          { role: "system", content: systemPrompt },
-          ...fewShot,
-          ...capped.map((m) => ({ role: m.role, content: m.content })),
-        ];
-
-        const result = await chatCompletion({
-          apiKey,
-          model: args.model,
-          messages: apiMessages,
-          ...(args.temperature !== null ? { temperature: args.temperature } : {}),
-        });
-
-        history.push({ role: "assistant", content: result.text });
-        hits.push(scoreText(result.text, markers));
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const usage: any = result.usage;
-        if (usage && typeof usage.cost === "number") {
-          totalCost = (totalCost ?? 0) + usage.cost;
-        }
-      }
-
-      const drift = computeDrift(hits);
-      const judge = await judgeConversation({
-        apiKey,
-        judgeModel: args.judgeModel,
-        persona,
-        transcript: history,
-      });
-
-      scenarioResults.push({
-        scenarioId: scenario.id,
-        axis: scenario.axis,
-        turns: userTurns.length,
-        drift,
-        judge,
-      });
-
-      console.log(
-        `  ターン数=${userTurns.length} late(first=${(drift.late.firstPerson * 100).toFixed(0)}% ending=${(
-          drift.late.sentenceEnding * 100
-        ).toFixed(0)}%) judge(tone=${judge.toneConsistency} knowledge=${judge.knowledgeUse} persona=${judge.personaMaintenance} natural=${judge.naturalness})`
-      );
-    } catch (err) {
-      skippedCount++;
-      const message = err instanceof Error ? err.message : String(err);
-      console.error(`  シナリオ "${scenario.id}" をスキップしました: ${message}`);
-    }
-  }
-
-  const aggregate = computeAggregate(scenarioResults);
-
-  const report: EvalReport = {
-    meta: {
-      persona: persona.id,
-      model: args.model,
-      temperature: args.temperature,
-      judgeModel: args.judgeModel,
-      maxHistory: args.maxHistory,
-      createdAt: new Date().toISOString(),
-      totalCostUsd: totalCost,
-    },
-    scenarios: scenarioResults,
-    aggregate,
-  };
+  const { report, skippedCount } = await runEval({
+    apiKey,
+    persona,
+    systemPrompt,
+    fewShot,
+    markers,
+    model: args.model,
+    temperature: args.temperature,
+    judgeModel: args.judgeModel,
+    maxHistory: args.maxHistory,
+    scenarios,
+    maxTurns: args.maxTurns,
+  });
 
   const filePath = writeReport(report);
   printSummary(report);

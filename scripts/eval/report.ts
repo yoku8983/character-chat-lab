@@ -77,6 +77,41 @@ export function computeAggregate(scenarios: ScenarioResult[]): EvalReport["aggre
   return { drift, judge };
 }
 
+export interface SweepRunSummary {
+  model: string;
+  temperature: number | null;
+  aggregate: EvalReport["aggregate"];
+  totalCostUsd: number | null;
+  skippedCount: number;
+}
+
+export interface SweepReport {
+  meta: {
+    persona: string;
+    judgeModel: string;
+    maxHistory: number;
+    scenarios: number;
+    maxTurns: number | null;
+    createdAt: string;
+  };
+  runs: SweepRunSummary[];
+}
+
+export function writeSweepReport(report: SweepReport): string {
+  if (!fs.existsSync(REPORTS_DIR)) {
+    fs.mkdirSync(REPORTS_DIR, { recursive: true });
+  }
+
+  const createdAtSafe = sanitizeForFilename(report.meta.createdAt);
+  const personaSafe = sanitizeForFilename(report.meta.persona);
+
+  const filename = `sweep-${createdAtSafe}-${personaSafe}.json`;
+  const filePath = path.join(REPORTS_DIR, filename);
+
+  fs.writeFileSync(filePath, JSON.stringify(report, null, 2), "utf-8");
+  return filePath;
+}
+
 export function writeReport(report: EvalReport): string {
   if (!fs.existsSync(REPORTS_DIR)) {
     fs.mkdirSync(REPORTS_DIR, { recursive: true });
