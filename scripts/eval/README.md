@@ -49,6 +49,44 @@ npm run eval:compare <before.jsonのパス> <after.jsonのパス>
 
 `eval:compare` はコンソール要約のみで、ファイルは生成しません。
 
+### temperature の設定場所
+
+- **本番** (`app/api/chat/route.ts`): 環境変数 `CHAT_TEMPERATURE`（0〜2 にクランプ、未設定なら送らずモデル既定に委ねる）
+- **評価 CLI** (`npm run eval`): `--temperature <num>`（指定時のみ API に送る）
+- **スイープ** (`npm run eval:sweep`): `--temps <csv>`（後述）
+
+### スイープ実行（T5: モデル × temperature をまとめて比較）
+
+複数モデル × 複数 temperature の組み合わせを一括実行し、口調ドリフト・Judge スコア・コストを
+比較表で確認できます。
+
+```bash
+npm run eval:sweep -- --persona-file <本番ペルソナJSONのパス> --scenarios 3 --max-turns 8
+```
+
+```bash
+npm run eval:sweep -- --persona tetsu-oyaji --models deepseek/deepseek-v4-flash,x-ai/grok-4.3 --temps 0.3,0.7,default
+```
+
+**コスト注意**: 構成数（`--models` の数 × `--temps` の数）× シナリオ数 × ターン数の分だけ API 呼び出しが
+増えます。実行前に推定呼び出し回数をログに表示しますが、フルシナリオ・フル構成での実行は高コストに
+なりがちなので、まずは `--scenarios` / `--max-turns` を絞ったスモーク実行を推奨します。
+
+#### スイープのオプション
+
+| オプション | 説明 | 既定値 |
+| --- | --- | --- |
+| `--persona <id>` / `--persona-file <path>` | 評価対象ペルソナ（どちらか必須） | - |
+| `--models <csv>` | 比較対象モデル（カンマ区切り） | `deepseek/deepseek-v4-flash,deepseek/deepseek-v4-pro,google/gemini-3.1-flash-lite,x-ai/grok-4.3` |
+| `--temps <csv>` | 比較対象 temperature（カンマ区切り）。`default` を含めると temperature 未指定（モデル既定）も比較できる | `0.3,0.7,1.0` |
+| `--judge <id>` | Judge モデル | 環境変数 `EVAL_JUDGE_MODEL`、なければ `google/gemini-3.1-flash-lite` |
+| `--max-history <n>` | チャット履歴の上限 | `30` |
+| `--scenarios <n>` | 先頭 n 本のシナリオのみ実行 | 全 10 本 |
+| `--max-turns <n>` | 各シナリオの発話を先頭 n 個に切る | 無制限 |
+
+実行結果は構成ごとの比較表として `console.table` に出力され、全構成をまとめた JSON レポートが
+`eval/reports/sweep-<日時>-<persona>.json` として書き出されます（Git 管理外）。
+
 ## メトリクスの意味
 
 ### (A) 口調ドリフト検出（正規表現ベース）

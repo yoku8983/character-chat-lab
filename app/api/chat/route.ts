@@ -47,6 +47,10 @@ export async function POST(request: NextRequest) {
     ...cappedMessages.map((m) => ({ role: m.role, content: m.content })),
   ];
 
+  const rawTemp = process.env.CHAT_TEMPERATURE;
+  const parsedTemp = rawTemp !== undefined && rawTemp !== "" ? Number(rawTemp) : NaN;
+  const temperature = Number.isFinite(parsedTemp) ? Math.min(2, Math.max(0, parsedTemp)) : undefined;
+
   const response = await fetch(
     "https://openrouter.ai/api/v1/chat/completions",
     {
@@ -58,6 +62,7 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         model: modelId,
         messages: apiMessages,
+        ...(temperature !== undefined ? { temperature } : {}),
         stream: true,
         usage: { include: true },
       }),

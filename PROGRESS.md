@@ -14,8 +14,8 @@
 2. ~~**T2: 会話履歴の上限管理**（最高）~~ ✅ 完了（`feat/t2-history-cap`。詳細は末尾「完了済み」）
 3. ~~**T3: 記憶抽出の重複防止**（高）~~ ✅ 完了（`feat/t3-dedup-memory`。詳細は末尾「完了済み」）
 4. ~~T4: 評価基盤（multi-turn 必須・Judge は別系統モデル）~~ ✅ 完了（`feat/t4-eval-harness`。詳細は末尾「完了済み」）
-5. T5: モデル × temperature 実験 ← 次はこれ（T4 ハーネスを使う）
-6. T6: ペルソナデータ品質改善 / T7: プロンプト構造のキャッシュ最適化
+5. ~~T5: モデル × temperature 実験~~ ✅ 実装完了（`feat/t5-model-temp`。実験ランは本番JSONで別途）
+6. T6: ペルソナデータ品質改善 / T7: プロンプト構造のキャッシュ最適化 ← 次はこれ
 7. 動的コンテキスト選択は**封印**（解除条件は Issue #20 参照。実装しないこと）
 
 タスクの詳細・チェックボックスは Issue #20 を参照し、完了したら Issue 側のチェックを更新すること。
@@ -55,6 +55,12 @@
 
 ## 完了済み（直近）
 
+- 2026-07-03: **T5 モデル × temperature 実験（実装）完了**（ブランチ `feat/t5-model-temp`）
+  - **本番 chat route に temperature 対応追加**: 環境変数 `CHAT_TEMPERATURE`（0〜2 にクランプ）を OpenRouter リクエストに条件付き付与。未設定・空・非数値なら送らない＝**後方互換**。最適点が決まったら本番でこの env を設定する運用ノブ。プロンプト・messages の並びは不変
+  - **評価ハーネスのコアを `scripts/eval/harness.ts` に切り出し**（`runEval(cfg)`）、`run.ts`（単一構成）と新規 `sweep.ts`（モデル×temperature スイープ）の両方から再利用
+  - **スイープ実行 `npm run eval:sweep`**: `--models`(csv)×`--temps`(csv, `default`=未指定可) の全組み合わせを回し、`console.table` で比較表（late一人称%/late語尾%/Δ/judge 4観点/cost/skip）＋総コストを出力、`eval/reports/sweep-*.json` に保存。実行前に推定 API 呼び出し回数を表示
+  - 検証: スモーク（tetsu-oyaji × flash × {0.3, default} × 1シナリオ×3ターン）でスイープ比較表・レポート出力を確認（総コスト $0.0012）。run.ts 単体もリファクタ後に正常。**本番 chat route も `CHAT_TEMPERATURE=0.4` 設定で HTTP 200・キャラ応答を確認**。`tsc` パス
+  - **実験ラン（items 2-3）は未実施**: 本番実キャラ JSON × 4モデル × temperature 数点 × 10シナリオは API コスト大のためユーザーが実行。手順: `npm run eval:sweep -- --persona-file <本番JSON> --scenarios <n> --max-turns <n>` → 比較表を見て「品質/コストの最適点」を決定 → 本番に `CHAT_TEMPERATURE` を設定。T4 の baseline（Flash/16ターン/30上限で口調ドリフトほぼ無し）が比較の起点
 - 2026-07-03: **T4 評価基盤（multi-turn 会話ハーネス）完了**（ブランチ `feat/t4-eval-harness`）
   - スタンドアロン CLI `scripts/eval/`（`tsx` を devDep 追加。`npm run eval` / `npm run eval:compare`）。アプリ本体（app/・lib/）は無変更で、`lib/personas`・`lib/prompt`・`lib/history` を相対 import で再利用
   - 構成: `scenarios.ts`（10 本×各16ターン・ペルソナ非依存・軸網羅）/ `markers.ts`（persona の speaking_style から一人称・語尾・口癖マーカーを導出、early/late 1/3 で出現率とドリフト delta を算出）/ `judge.ts`（LLM-as-Judge。口調一貫性・知識活用度・人格維持・自然さを 1〜5 で採点）/ `openrouter.ts`（非ストリーミング＋429/5xx リトライ）/ `report.ts`（`eval/reports/` に JSON 出力・gitignore 済み）/ `compare.ts`（Before/After 差分）
