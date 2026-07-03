@@ -14,12 +14,12 @@ export function getUsdJpyRate(): number {
 
 /**
  * USD 金額を指定レートで円換算し、表示用文字列を返す。
- * USD 金額が 1 未満の場合は円換算値を小数第1位まで、1 以上の場合は
+ * 円換算後の値が ¥10 未満の場合は小数第1位まで、¥10 以上の場合は
  * 整数に丸めて toLocaleString("ja-JP") で3桁区切り表示する。
  */
 export function formatJpy(usd: number, rate: number): string {
   const jpy = usd * rate;
-  if (usd < 1) {
+  if (jpy < 10) {
     return `¥${jpy.toFixed(1)}`;
   }
   return `¥${Math.round(jpy).toLocaleString("ja-JP")}`;
