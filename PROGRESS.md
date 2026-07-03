@@ -71,12 +71,19 @@
   - 実装計画: `docs/superpowers/plans/2026-07-04-eval-gui-usage-dashboard.md`（Task 1〜10、2PR 分割はユーザー合意済み）
   - 両方ともブランチ `feat/eval-gui-usage-dashboard` にコミット済み
   - **PR①（`feat/usage-dashboard`、Task 1〜4）**: usage 集計拡張（JST 基準の byDay/byMonth・today/thisMonth）・円換算ヘルパ・usage ページ改修・ドキュメント更新まで実装完了。日別/月別/今日/今月の集計境界を UTC→JST 基準に変える判断（Task 1）は**ユーザー承認済み**。次は PR 作成（`npx tsc --noEmit` 最終確認後）
-  - **PR②（`feat/eval-gui`、Task 5〜10・評価 GUI）**: PR① マージ後に main から分岐して着手。実装は Sonnet サブエージェント委譲 + メインがレビュー
+  - **PR②（`feat/eval-gui`、Task 5〜10・評価 GUI）**: 実装完了・PR 作成待ち（詳細は末尾「完了済み」）
 - 関連の合意事項（このセッションでの議論・未着手）: 実キャラ運用は「ローカル私設リポジトリ（personas + datasets 並置）を master とし、本番 Turso へはペルソナ JSON のみ push」方針で合意。`persona:pull` / `persona:push` スクリプトは未実装（Issue 未起票）。また**本番全 API が無認証**である問題を調査で確認済み（別 Issue 起票推奨・未起票）
 - Issue #34 T1 の残り: 本番キャラの正解ペア 20〜50 件 + クイズ設問の作成（開発者監修・リポジトリ外運用。ユーザーと協働）
 
 ## 完了済み（直近）
 
+- 2026-07-04: **評価 GUI PR②「評価コンソール `/eval`」実装完了**（ブランチ `feat/eval-gui`、main から分岐。PR 作成待ち）
+  - Task 5: `scripts/eval/harness.ts` に `onProgress`（シナリオ進捗通知）・`shouldCancel`（中断チェック）・`cancelled`（結果フラグ）フックを追加（すべて optional。既存 CLI `npm run eval` の挙動は不変）
+  - Task 6: `scripts/eval/quiz-runner.ts` 新設。`quiz.ts` にあった `runQuiz` / `writeQuizReport` と型を移設し、CLI (`npm run eval:quiz`) からも GUI からも共通利用。CLI 挙動は同等
+  - Task 7: `lib/eval-ui/guard.ts`（`isEvalUiEnabled`: 環境変数 `EVAL_UI_ENABLED` が `"1"`/`"true"` のときのみ true）+ `lib/eval-ui/job-store.ts`（メモリ上の単一ジョブストア。同時実行は1件まで）を追加
+  - Task 8: `app/api/eval/{run,status,cancel,reports,reports/[filename]}` route を追加。全 route で `EVAL_UI_ENABLED` 必須（未設定時 404）、実行中に別ジョブを起動しようとすると 409、レポート取得はファイル名をホワイトリスト検証してパストラバーサルを防止
+  - Task 9: `/eval` ページ（`app/eval/page.tsx` + `components/EvalConsole.tsx`）を追加。多ターン評価/知識クイズの実行フォーム（ペルソナを DB 登録済み/ファイルパスで切替、推定 API コール数の目安表示）、2秒間隔ポーリングによる進捗表示+中断、過去レポート一覧+詳細展開。e2e 確認済み
+  - Task 10: `.env.example` / `scripts/eval/README.md` / `README.md` に GUI の存在・起動方法（`EVAL_UI_ENABLED=1 npm run dev` → `/eval`）を追記。プロジェクト `CLAUDE.md` の「現在のフェーズ」を実態（Issue #34 着手フェーズ）に合わせて更新。`npx next build` 成功・`npx tsc --noEmit` パスを確認済み
 - 2026-07-04: **usage ダッシュボード強化 PR①「usage 集計拡張 + 円換算 + ページ改修」実装完了**（ブランチ `feat/usage-dashboard`。PR 作成待ち）
   - `lib/db-usage-log.ts`: `getUsageSummary` に `byMonth`（月別集計）・`today`・`thisMonth`（当日/当月サマリ）を追加。`byDay` の集計基準を **UTC → JST（日本時間）に変更**し、**直近30日に制限**（従来は UTC 基準・無制限）。JST 判断はユーザー承認済み
   - `lib/jpy.ts` 新設: `getUsdJpyRate`（環境変数 `USD_JPY_RATE`、未設定/不正値なら既定155）、`formatJpy`（換算後 ¥10 未満のみ小数1桁表示、それ以上は整数）、`formatUsd`。`.env.example` に `USD_JPY_RATE` を追記
