@@ -31,9 +31,9 @@ export interface EvalReport {
   };
 }
 
-const REPORTS_DIR = path.join(process.cwd(), "eval", "reports");
+export const REPORTS_DIR = path.join(process.cwd(), "eval", "reports");
 
-function sanitizeForFilename(value: string): string {
+export function sanitizeForFilename(value: string): string {
   return value.replace(/[/:]/g, "_").replace(/[^a-zA-Z0-9._-]/g, "_");
 }
 
