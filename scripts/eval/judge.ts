@@ -7,6 +7,7 @@ export interface JudgeScores {
   personaMaintenance: number;
   naturalness: number;
   comment: string;
+  failed?: boolean;
 }
 
 const JUDGE_SYSTEM_PROMPT = `あなたは対話キャラクターの品質評価者です。以下のキャラクター定義と会話を読み、4観点を各1〜5の整数で採点し、JSONのみ出力してください。
@@ -113,6 +114,7 @@ export async function judgeConversation(args: {
       personaMaintenance: 0,
       naturalness: 0,
       comment: `Judge の採点に失敗しました: ${message.slice(0, 300)}`,
+      failed: true,
     };
   }
 }
