@@ -13,7 +13,7 @@ export async function GET(
 
   const { filename } = await params;
 
-  if (/[^a-zA-Z0-9._-]/.test(filename)) {
+  if (/[^a-zA-Z0-9._-]/.test(filename) || filename === "." || filename === "..") {
     return new Response(JSON.stringify({ error: "ファイル名が不正です" }), {
       status: 400,
       headers: { "Content-Type": "application/json" },
