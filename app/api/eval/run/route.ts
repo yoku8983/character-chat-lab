@@ -59,15 +59,15 @@ function validateParams(body: unknown): EvalJobParams | string {
     return "model は必須です";
   }
 
-  if (b.temperature !== null && typeof b.temperature !== "number") {
+  if (b.temperature !== undefined && b.temperature !== null && typeof b.temperature !== "number") {
     return "temperature は数値または null で指定してください";
   }
 
-  if (b.scenariosCount !== null && typeof b.scenariosCount !== "number") {
+  if (b.scenariosCount !== undefined && b.scenariosCount !== null && typeof b.scenariosCount !== "number") {
     return "scenariosCount は数値または null で指定してください";
   }
 
-  if (b.maxTurns !== null && typeof b.maxTurns !== "number") {
+  if (b.maxTurns !== undefined && b.maxTurns !== null && typeof b.maxTurns !== "number") {
     return "maxTurns は数値または null で指定してください";
   }
 
@@ -110,7 +110,7 @@ async function runJob(jobId: string, params: EvalJobParams, apiKey: string): Pro
         throw new Error("データセットに knowledgeQuiz がありません");
       }
 
-      const { items, totalCostUsd } = await runQuiz({
+      const { items, totalCostUsd, cancelled } = await runQuiz({
         apiKey,
         persona,
         systemPrompt,
@@ -146,7 +146,7 @@ async function runJob(jobId: string, params: EvalJobParams, apiKey: string): Pro
       };
 
       const filePath = writeQuizReport(report);
-      finishJob(jobId, { status: "done", reportPath: filePath });
+      finishJob(jobId, { status: cancelled ? "cancelled" : "done", reportPath: filePath });
       return;
     }
 
