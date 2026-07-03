@@ -22,11 +22,22 @@ export interface EvalConfig {
   logPrefix?: string; // 進捗ログの接頭辞（sweep で "flash@0.3 " 等）
   dataset?: EvalDataset; // 参照付き Judge 用の正解データセット（未指定なら従来どおり4観点）
   datasetPath?: string; // レポート meta 記録用（run.ts の --dataset 値）
+  onProgress?: (p: EvalProgress) => void; // 進捗コールバック（GUI 等での表示用。CLI からは未使用）
+  shouldCancel?: () => boolean; // true を返すとシナリオ境界で中断する（CLI からは未使用）
+}
+
+export interface EvalProgress {
+  scenarioIndex: number; // 0-based
+  scenarioCount: number;
+  scenarioId: string;
+  turnIndex: number; // 0-based。シナリオ開始時は 0
+  turnCount: number;
 }
 
 export interface EvalRunResult {
   report: EvalReport;
   skippedCount: number;
+  cancelled: boolean; // shouldCancel によりシナリオ境界で停止した場合 true
 }
 
 /**
@@ -39,8 +50,16 @@ export async function runEval(cfg: EvalConfig): Promise<EvalRunResult> {
   const scenarioResults: ScenarioResult[] = [];
   let totalCost: number | null = null;
   let skippedCount = 0;
+  let cancelled = false;
+  const scenarioCount = cfg.scenarios.length;
 
-  for (const scenario of cfg.scenarios) {
+  for (let scenarioIndex = 0; scenarioIndex < scenarioCount; scenarioIndex++) {
+    if (cfg.shouldCancel?.()) {
+      cancelled = true;
+      break;
+    }
+
+    const scenario = cfg.scenarios[scenarioIndex];
     const userTurns =
       cfg.maxTurns !== null && Number.isFinite(cfg.maxTurns) && cfg.maxTurns > 0
         ? scenario.userTurns.slice(0, cfg.maxTurns)
@@ -52,7 +71,15 @@ export async function runEval(cfg: EvalConfig): Promise<EvalRunResult> {
       const history: ChatMessage[] = [];
       const hits: TurnHit[] = [];
 
-      for (const userTurn of userTurns) {
+      for (let turnIndex = 0; turnIndex < userTurns.length; turnIndex++) {
+        const userTurn = userTurns[turnIndex];
+        cfg.onProgress?.({
+          scenarioIndex,
+          scenarioCount,
+          scenarioId: scenario.id,
+          turnIndex,
+          turnCount: userTurns.length,
+        });
         history.push({ role: "user", content: userTurn });
 
         // capMessageHistory は maxHistory<=0 を「無制限」として扱う（lib/history.ts の既存仕様）
@@ -134,5 +161,5 @@ export async function runEval(cfg: EvalConfig): Promise<EvalRunResult> {
     aggregate,
   };
 
-  return { report, skippedCount };
+  return { report, skippedCount, cancelled };
 }
