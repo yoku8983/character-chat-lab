@@ -165,6 +165,9 @@ export default function EvalConsole({ personas }: EvalConsoleProps) {
   const [expandedFilename, setExpandedFilename] = useState<string | null>(null);
   const [expandedDetail, setExpandedDetail] = useState<ReportDetail | null>(null);
   const [expandedError, setExpandedError] = useState<string | null>(null);
+  // 直近にリクエストした filename。fetch 完了時にこれと一致する場合のみ state に反映する
+  // （行 A → 行 B と素早くクリックした際、遅延した A の応答が B の表示を上書きする stale-response を防ぐ）
+  const expandedRequestRef = useRef<string | null>(null);
 
   const fetchReports = useCallback(async () => {
     setReportsLoading(true);
@@ -286,23 +289,35 @@ export default function EvalConsole({ personas }: EvalConsoleProps) {
 
   async function handleRowClick(filename: string) {
     if (expandedFilename === filename) {
+      expandedRequestRef.current = null;
       setExpandedFilename(null);
       setExpandedDetail(null);
       setExpandedError(null);
       return;
     }
+    expandedRequestRef.current = filename;
     setExpandedFilename(filename);
     setExpandedDetail(null);
     setExpandedError(null);
     try {
       const res = await fetch(`/api/eval/reports/${encodeURIComponent(filename)}`);
+      if (expandedRequestRef.current !== filename) {
+        // 応答が返る間に別の行が選択された（stale response）。無視する
+        return;
+      }
       if (!res.ok) {
         setExpandedError(`詳細の取得に失敗しました（status ${res.status}）`);
         return;
       }
       const data: ReportDetail = await res.json();
+      if (expandedRequestRef.current !== filename) {
+        return;
+      }
       setExpandedDetail(data);
     } catch (err) {
+      if (expandedRequestRef.current !== filename) {
+        return;
+      }
       setExpandedError(err instanceof Error ? err.message : "詳細の取得に失敗しました");
     }
   }
