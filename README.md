@@ -268,6 +268,19 @@ npm run eval:compare -- <report-a.json> <report-b.json>
 - LLM-as-Judge: 被評価モデルと別系統のモデルで tone / knowledge / persona / naturalness を採点
 - 実測コストはレポートに記録され、`/usage` ページでも集計を確認できます
 
+### 評価コンソール（ローカル専用）
+
+上記の CLI 評価をブラウザから実行・進捗確認・履歴閲覧できる GUI（`/eval` ページ）を同梱しています。
+環境変数 `EVAL_UI_ENABLED` を `"1"` にした場合のみ有効になるローカル専用機能で、未設定時は本番同様
+404 になります（本番環境変数には設定しないこと）。
+
+```bash
+EVAL_UI_ENABLED=1 npm run dev
+```
+
+http://localhost:3000/eval を開くと、多ターン評価・知識クイズの実行フォーム、実行中の進捗表示と中断、
+過去レポートの一覧・詳細表示が使えます。詳細は [scripts/eval/README.md](scripts/eval/README.md) を参照。
+
 ## アーキテクチャ
 
 ```
