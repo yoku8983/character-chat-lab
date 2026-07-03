@@ -128,6 +128,7 @@ function rowToPeriodSummary(row: Row | undefined): UsagePeriodSummary {
 }
 
 export async function getUsageSummary(client: Client): Promise<UsageSummary> {
+  // 日付境界は JST（UTC+9、サマータイム無し）基準。created_at は UTC 保存
   const byModelResult = await client.execute(
     `SELECT model_id, COUNT(*) AS calls, SUM(prompt_tokens) AS prompt_tokens, SUM(completion_tokens) AS completion_tokens, SUM(cached_tokens) AS cached_tokens, SUM(cost) AS cost
      FROM usage_log GROUP BY model_id ORDER BY cost DESC`

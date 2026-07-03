@@ -30,7 +30,7 @@ export default async function UsagePage() {
   const client = await ensureDb();
   const summary = await getUsageSummary(client);
   const rate = getUsdJpyRate();
-  const evalUiEnabled = Boolean(process.env.EVAL_UI_ENABLED);
+  const evalUiEnabled = process.env.EVAL_UI_ENABLED === "1" || process.env.EVAL_UI_ENABLED === "true";
 
   return (
     <div className="min-h-screen px-4 md:px-8 py-6 md:py-10" style={{ backgroundColor: "var(--bg-primary)" }}>
