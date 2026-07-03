@@ -1,12 +1,9 @@
-import fs from "fs";
-import path from "path";
 import { loadEnv } from "./env";
 import { loadPersonaSource } from "./persona-loader";
 import { loadDataset, QuizItem } from "./dataset";
-import { chatCompletion } from "./openrouter";
-import { gradeQuizAnswer, QuizGrade } from "./quiz-grader";
-import { sanitizeForFilename, REPORTS_DIR } from "./report";
+import { QuizGrade } from "./quiz-grader";
 import { buildSystemPrompt, buildFewShotMessages } from "../../lib/prompt";
+import { runQuiz, writeQuizReport, QuizReport, QuizItemResult } from "./quiz-runner";
 
 const DEFAULT_MODEL = "deepseek/deepseek-v4-flash";
 
@@ -16,30 +13,6 @@ interface CliArgs {
   datasetPath?: string;
   model: string;
   temperature: number | null;
-}
-
-interface QuizItemResult {
-  question: string;
-  answer: string;
-  grade: QuizGrade;
-  notes?: string;
-}
-
-interface QuizReport {
-  meta: {
-    persona: string;
-    model: string;
-    temperature: number | null;
-    dataset: string;
-    createdAt: string;
-    totalCostUsd: number | null;
-  };
-  items: QuizItemResult[];
-  aggregate: {
-    correctCount: number;
-    totalCount: number;
-    accuracy: number;
-  };
 }
 
 function printUsage(): void {
@@ -106,22 +79,6 @@ function summarizeGrade(grade: QuizGrade): string {
   return parts.join("; ");
 }
 
-function writeQuizReport(report: QuizReport): string {
-  if (!fs.existsSync(REPORTS_DIR)) {
-    fs.mkdirSync(REPORTS_DIR, { recursive: true });
-  }
-
-  const createdAtSafe = sanitizeForFilename(report.meta.createdAt);
-  const personaSafe = sanitizeForFilename(report.meta.persona);
-  const modelSafe = sanitizeForFilename(report.meta.model);
-
-  const filename = `quiz-${createdAtSafe}-${personaSafe}-${modelSafe}.json`;
-  const filePath = path.join(REPORTS_DIR, filename);
-
-  fs.writeFileSync(filePath, JSON.stringify(report, null, 2), "utf-8");
-  return filePath;
-}
-
 async function main(): Promise<void> {
   loadEnv();
 
@@ -167,38 +124,23 @@ async function main(): Promise<void> {
     `知識クイズ評価開始: persona=${persona.id} model=${args.model} dataset=${args.datasetPath}(${quiz.length}問)`
   );
 
-  const items: QuizItemResult[] = [];
-  let totalCost: number | null = null;
+  const { items, totalCostUsd } = await runQuiz({
+    apiKey,
+    persona,
+    systemPrompt,
+    fewShot,
+    quiz,
+    model: args.model,
+    temperature: args.temperature,
+  });
 
-  for (const item of quiz) {
-    const apiMessages = [
-      { role: "system", content: systemPrompt },
-      ...fewShot,
-      { role: "user", content: item.question },
-    ];
-
-    const result = await chatCompletion({
-      apiKey,
-      model: args.model,
-      messages: apiMessages,
-      ...(args.temperature !== null ? { temperature: args.temperature } : {}),
-    });
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const usage: any = result.usage;
-    if (usage && typeof usage.cost === "number") {
-      totalCost = (totalCost ?? 0) + usage.cost;
+  items.forEach((item: QuizItemResult) => {
+    console.log(`${item.grade.correct ? "○" : "×"} ${truncate(item.question, 40)}`);
+    if (!item.grade.correct) {
+      console.log(`  ${summarizeGrade(item.grade)}`);
+      console.log(`  応答全文: ${item.answer}`);
     }
-
-    const grade = gradeQuizAnswer(item, result.text);
-    items.push({ question: item.question, answer: result.text, grade, notes: item.notes });
-
-    console.log(`${grade.correct ? "○" : "×"} ${truncate(item.question, 40)}`);
-    if (!grade.correct) {
-      console.log(`  ${summarizeGrade(grade)}`);
-      console.log(`  応答全文: ${result.text}`);
-    }
-  }
+  });
 
   const correctCount = items.filter((i) => i.grade.correct).length;
   const totalCount = items.length;
@@ -214,7 +156,7 @@ async function main(): Promise<void> {
   );
 
   console.log(`\n正答率: ${correctCount}/${totalCount} (${(accuracy * 100).toFixed(1)}%)`);
-  console.log(`総コスト: ${totalCost !== null ? `$${totalCost.toFixed(6)}` : "不明"}`);
+  console.log(`総コスト: ${totalCostUsd !== null ? `$${totalCostUsd.toFixed(6)}` : "不明"}`);
 
   const report: QuizReport = {
     meta: {
@@ -223,7 +165,7 @@ async function main(): Promise<void> {
       temperature: args.temperature,
       dataset: args.datasetPath,
       createdAt: new Date().toISOString(),
-      totalCostUsd: totalCost,
+      totalCostUsd,
     },
     items,
     aggregate: { correctCount, totalCount, accuracy },
