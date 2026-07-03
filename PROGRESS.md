@@ -64,8 +64,25 @@
 - **実装中に設計レベルの想定外**（例: OpenRouter の usage が仕様どおり返らない、キャッシュ挙動が分析と異なる）が出たら: この PROGRESS.md に事実を記録し、独断で設計変更せず、設計レビュー用の Fable セッションに「小さく切り出した質問」として持ち込む
 - モデル運用: メインセッション = Opus 4.8、探索・読み取り・機械的作業のサブエージェント = Sonnet / Haiku。Fable は設計判断の単発相談のみ
 
+## 中断中の作業（2026-07-04 セッション終了時点・次セッションはここから）
+
+- **評価 GUI + usage ダッシュボード強化**: 設計・実装計画は完了。**PR①（usage ダッシュボード）は実装完了・PR 作成待ち**、**PR②（評価 GUI、Task 5〜10）は未着手**
+  - 設計書: `docs/superpowers/specs/2026-07-04-eval-gui-usage-dashboard-design.md`（ユーザー承認済み）
+  - 実装計画: `docs/superpowers/plans/2026-07-04-eval-gui-usage-dashboard.md`（Task 1〜10、2PR 分割はユーザー合意済み）
+  - 両方ともブランチ `feat/eval-gui-usage-dashboard` にコミット済み
+  - **PR①（`feat/usage-dashboard`、Task 1〜4）**: usage 集計拡張（JST 基準の byDay/byMonth・today/thisMonth）・円換算ヘルパ・usage ページ改修・ドキュメント更新まで実装完了。日別/月別/今日/今月の集計境界を UTC→JST 基準に変える判断（Task 1）は**ユーザー承認済み**。次は PR 作成（`npx tsc --noEmit` 最終確認後）
+  - **PR②（`feat/eval-gui`、Task 5〜10・評価 GUI）**: PR① マージ後に main から分岐して着手。実装は Sonnet サブエージェント委譲 + メインがレビュー
+- 関連の合意事項（このセッションでの議論・未着手）: 実キャラ運用は「ローカル私設リポジトリ（personas + datasets 並置）を master とし、本番 Turso へはペルソナ JSON のみ push」方針で合意。`persona:pull` / `persona:push` スクリプトは未実装（Issue 未起票）。また**本番全 API が無認証**である問題を調査で確認済み（別 Issue 起票推奨・未起票）
+- Issue #34 T1 の残り: 本番キャラの正解ペア 20〜50 件 + クイズ設問の作成（開発者監修・リポジトリ外運用。ユーザーと協働）
+
 ## 完了済み（直近）
 
+- 2026-07-04: **usage ダッシュボード強化 PR①「usage 集計拡張 + 円換算 + ページ改修」実装完了**（ブランチ `feat/usage-dashboard`。PR 作成待ち）
+  - `lib/db-usage-log.ts`: `getUsageSummary` に `byMonth`（月別集計）・`today`・`thisMonth`（当日/当月サマリ）を追加。`byDay` の集計基準を **UTC → JST（日本時間）に変更**し、**直近30日に制限**（従来は UTC 基準・無制限）。JST 判断はユーザー承認済み
+  - `lib/jpy.ts` 新設: `getUsdJpyRate`（環境変数 `USD_JPY_RATE`、未設定/不正値なら既定155）、`formatJpy`（換算後 ¥10 未満のみ小数1桁表示、それ以上は整数）、`formatUsd`。`.env.example` に `USD_JPY_RATE` を追記
+  - `app/usage/page.tsx`: 今日/今月/累計のサマリカード、月別コストセクションを追加。全テーブルで USD/JPY を併記。`← チャットに戻る` リンク、`EVAL_UI_ENABLED` 時のみ評価コンソールへのリンクを表示。`components/Header.tsx` にデスクトップ・モバイル両方で「利用状況」リンクを追加
+  - README.md の `/usage` 説明を新機能（サマリカード・月別集計・円換算・ヘッダー導線）に合わせて更新
+  - 設計書・実装計画: `docs/superpowers/specs/2026-07-04-eval-gui-usage-dashboard-design.md` / `docs/superpowers/plans/2026-07-04-eval-gui-usage-dashboard.md`（PR② 側のブランチ `feat/eval-gui-usage-dashboard` にコミット済み。本 PR には含めない）
 - 2026-07-04: **Issue #34 T1「知識クイズ評価（ハルシネーション検出の自動化）」完了**（ブランチ `feat/eval-knowledge-quiz`）
   - `scripts/eval/dataset.ts`: `EvalDataset` に `knowledgeQuiz?: QuizItem[]` を正式フィールドとして追加（`QuizItem` = `question` / `mustContain` / `mustNotContain?` / `notes?`）。`loadDataset` は `knowledgeQuiz` 指定時に各要素を検証し、`mustContain`・`mustNotContain` が両方空／欠落の設問は日本語エラーで throw（「知らないと答えるべき設問」は `mustContain: []` + `mustNotContain` 必須で判定するため）
   - `scripts/eval/quiz-grader.ts` 新設: 純粋関数 `gradeQuizAnswer(item, answer)`。正規化は「空白（全角含む）除去＋小文字化」のみ（過剰な正規化はしない）。`mustContain` の各要素は `|` 区切りで表記ゆれを OR 許容、全要素充足で AND 判定。`mustNotContain` はいずれか1つでもヒットしたら不正解

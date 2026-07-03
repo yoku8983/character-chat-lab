@@ -34,6 +34,17 @@ export interface UsageByDay {
   calls: number;
 }
 
+export interface UsageByMonth {
+  month: string;
+  cost: number;
+  calls: number;
+}
+
+export interface UsagePeriodSummary {
+  calls: number;
+  cost: number;
+}
+
 export interface UsageOverall {
   calls: number;
   promptTokens: number;
@@ -46,6 +57,9 @@ export interface UsageOverall {
 export interface UsageSummary {
   byModel: UsageByModel[];
   byDay: UsageByDay[];
+  byMonth: UsageByMonth[];
+  today: UsagePeriodSummary;
+  thisMonth: UsagePeriodSummary;
   overall: UsageOverall;
 }
 
@@ -98,7 +112,23 @@ function rowToUsageByDay(row: Row): UsageByDay {
   };
 }
 
+function rowToUsageByMonth(row: Row): UsageByMonth {
+  return {
+    month: row.month as string,
+    cost: Number(row.cost) || 0,
+    calls: Number(row.calls) || 0,
+  };
+}
+
+function rowToPeriodSummary(row: Row | undefined): UsagePeriodSummary {
+  return {
+    calls: Number(row?.calls) || 0,
+    cost: Number(row?.cost) || 0,
+  };
+}
+
 export async function getUsageSummary(client: Client): Promise<UsageSummary> {
+  // 日付境界は JST（UTC+9、サマータイム無し）基準。created_at は UTC 保存
   const byModelResult = await client.execute(
     `SELECT model_id, COUNT(*) AS calls, SUM(prompt_tokens) AS prompt_tokens, SUM(completion_tokens) AS completion_tokens, SUM(cached_tokens) AS cached_tokens, SUM(cost) AS cost
      FROM usage_log GROUP BY model_id ORDER BY cost DESC`
@@ -106,10 +136,28 @@ export async function getUsageSummary(client: Client): Promise<UsageSummary> {
   const byModel = byModelResult.rows.map(rowToUsageByModel);
 
   const byDayResult = await client.execute(
-    `SELECT date(created_at) AS day, SUM(cost) AS cost, COUNT(*) AS calls
-     FROM usage_log GROUP BY day ORDER BY day DESC`
+    `SELECT date(created_at, '+9 hours') AS day, SUM(cost) AS cost, COUNT(*) AS calls
+     FROM usage_log GROUP BY day ORDER BY day DESC LIMIT 30`
   );
   const byDay = byDayResult.rows.map(rowToUsageByDay);
+
+  const byMonthResult = await client.execute(
+    `SELECT strftime('%Y-%m', created_at, '+9 hours') AS month, SUM(cost) AS cost, COUNT(*) AS calls
+     FROM usage_log GROUP BY month ORDER BY month DESC`
+  );
+  const byMonth = byMonthResult.rows.map(rowToUsageByMonth);
+
+  const todayResult = await client.execute(
+    `SELECT COUNT(*) AS calls, SUM(cost) AS cost FROM usage_log
+     WHERE date(created_at, '+9 hours') = date('now', '+9 hours')`
+  );
+  const today = rowToPeriodSummary(todayResult.rows[0]);
+
+  const thisMonthResult = await client.execute(
+    `SELECT COUNT(*) AS calls, SUM(cost) AS cost FROM usage_log
+     WHERE strftime('%Y-%m', created_at, '+9 hours') = strftime('%Y-%m', 'now', '+9 hours')`
+  );
+  const thisMonth = rowToPeriodSummary(thisMonthResult.rows[0]);
 
   const overallResult = await client.execute(
     `SELECT COUNT(*) AS calls, SUM(prompt_tokens) AS prompt_tokens, SUM(completion_tokens) AS completion_tokens, SUM(cached_tokens) AS cached_tokens, SUM(cost) AS cost
@@ -127,5 +175,5 @@ export async function getUsageSummary(client: Client): Promise<UsageSummary> {
     cacheHitRate: overallPromptTokens > 0 ? overallCachedTokens / overallPromptTokens : 0,
   };
 
-  return { byModel, byDay, overall };
+  return { byModel, byDay, byMonth, today, thisMonth, overall };
 }

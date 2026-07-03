@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Model, PersonaSummary } from "@/lib/types";
 import PersonaAvatar from "./PersonaAvatar";
 
@@ -93,8 +94,15 @@ export default function Header({
         </div>
 
         {/* Mobile mode tabs (right side of row 1) */}
-        <div className="md:hidden">
+        <div className="md:hidden flex items-center gap-2">
           <ModeButtons mode={mode} onModeChange={onModeChange} mobile />
+          <Link
+            href="/usage"
+            className="px-3 py-1.5 rounded text-sm transition-colors whitespace-nowrap"
+            style={{ backgroundColor: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border)" }}
+          >
+            利用状況
+          </Link>
         </div>
       </div>
 
@@ -159,8 +167,15 @@ export default function Header({
       </div>
 
       {/* Desktop mode tabs (right-aligned) */}
-      <div className="hidden md:flex ml-auto">
+      <div className="hidden md:flex items-center gap-3 ml-auto">
         <ModeButtons mode={mode} onModeChange={onModeChange} />
+        <Link
+          href="/usage"
+          className="px-6 py-2.5 text-lg rounded transition-colors whitespace-nowrap"
+          style={{ backgroundColor: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border)" }}
+        >
+          利用状況
+        </Link>
       </div>
     </header>
   );
