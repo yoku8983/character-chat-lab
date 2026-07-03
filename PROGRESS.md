@@ -1,18 +1,18 @@
 # PROGRESS.md — character-chat-lab
 
-> 最終更新: 2026-07-03（Fable 5 セッションからの引継ぎ文書を兼ねる）
+> 最終更新: 2026-07-04（Fable 5 セッションからの引継ぎ文書を兼ねる）
 
 ## 現在地
 
 - MVP1・MVP2 完了。Azure Container Apps 本番デプロイ済み（libSQL/Turso + スケールゼロ）
 - **Issue #20「ペルソナデータ設計・コンテキスト戦略・コスト最適化の総合改善」は 2026-07-03 にクローズ**（T1〜T7 完了。仕様書反映 PR #33 マージ済み）
-- 後継の **Issue #34「評価の高精度化とペルソナ設計の実証改善」** に着手フェーズ。Issue #34 本文に「実装コンテキスト（引き継ぎ）」セクションを追記済みで、既存評価基盤の構成・T1 改修ポイント（`scripts/eval/judge.ts` / `report.ts`）・運用ルールをコード実査済みで記載している。**次セッションはまず Issue #34 を読むこと**
+- 後継の **Issue #34「評価の高精度化とペルソナ設計の実証改善」** に着手フェーズ。**T1「正解データセット評価と参照付き Judge」は 2026-07-04 に実装完了**（詳細は末尾「完了済み」）。次は T2「品質回帰の継続トラッキング」
 
 ## 次にやること（Issue #34 のタスク、優先順）
 
-1. **T1: 正解データセット評価と参照付き Judge**（最高）— 全体のボトルネック。最優先
-2. **T2: 品質回帰の継続トラッキング**（高）— T1 完了が前提
-3. **T3: ペルソナスキーマの実証改善**（中）— T1 の尖った評価で A/B 検証しながら進める
+1. ~~T1: 正解データセット評価と参照付き Judge~~ ✅ 完了（`feat/eval-reference-judge`。詳細は末尾「完了済み」）
+2. **T2: 品質回帰の継続トラッキング**（高）— 次の最優先
+3. **T3: ペルソナスキーマの実証改善**（中）— T1 の尖った評価（参照付き Judge）で A/B 検証しながら進める
 
 タスクの詳細・チェックボックスは Issue #34 を参照し、完了したら Issue 側のチェックを更新すること。
 
@@ -66,6 +66,13 @@
 
 ## 完了済み（直近）
 
+- 2026-07-04: **Issue #34 T1「参照付き Judge + 正解データセット隔離」完了**（ブランチ `feat/eval-reference-judge`）
+  - `scripts/eval/dataset.ts` 新設: `EvalDataset` / `ReferencePair`（`situation` / `reference` / `canon` / `notes?`）と `loadDataset(filePath)`。必須フィールド欠落・型不正・`referencePairs` 空配列は日本語エラーで throw、未知フィールドは無視（将来の知識クイズ `knowledgeQuiz` 追加に備える）
+  - `scripts/eval/datasets/` 新設・隔離: `.gitignore` に `scripts/eval/datasets/*` + `!README.md` + `!example-*.json` を追加。**原作台詞を含む実キャラのデータセットは絶対にコミットしない**運用（`datasets/README.md` に明記）。サンプル `example-tetsu-oyaji.json`（架空キャラ用、canon:true 3件/canon:false 2件）をコミット
+  - `scripts/eval/judge.ts` 拡張: `referencePairs` 指定時のみ第5観点 `referenceFidelity`（人物同一性）を厳格な減点式 rubric（5=区別不可〜1=別人）で追加採点。正解例は user コンテンツに `## 正解応答例` として注入し、**過適合防止**（正解例の丸暗記でなく汎化した人物らしさを評価）の指示を明記。`buildJudgeUserContent` / `selectJudgeSystemPrompt` を純粋関数としてエクスポートし API なしで検証可能に。`referencePairs` 未指定時は既存4観点プロンプト・挙動を完全維持（後方互換）
+  - `report.ts` / `compare.ts` / `harness.ts` / `run.ts` / `sweep.ts`: `computeAggregate` は `referenceFidelity` を持つ非失敗シナリオのみで平均（該当0件なら `undefined`）。`printSummary` はシナリオ別テーブルに `refFidelity` 列を条件付き追加。`compare.ts` は両レポートに `referenceFidelity` がある場合のみ差分表示（`NaN` を出さない）。`runEval(cfg)` に `dataset?` を追加しレポート `meta.dataset` に記録。`run.ts` / `sweep.ts` に `--dataset <path>` オプションを追加（`personaId` 不一致は警告のみで中断しない。本番キャラは `--persona-file` 運用で id が揺れうるため）
+  - 検証: tsx ワンオフスクリプトで `loadDataset` 正常系+異常系（必須欠落・personaId欠落・空配列・型不正）、プロンプト組立（referencePairs 有無での内容差分）、`computeAggregate`（referenceFidelity 2本平均・既存4観点は failed 除外3本平均・該当0件で undefined）を全通過。`npx tsc --noEmit` パス。実スモーク `npm run eval -- --persona tetsu-oyaji --scenarios 1 --max-turns 2 --dataset scripts/eval/datasets/example-tetsu-oyaji.json` 実行 → `refFidelity` 列（値5）がサマリに出力、コスト $0.000297。`--dataset` なしの後方互換スモークも実行 → `refFidelity` 列が出ずエラーなし、コスト $0.000366（合計 $0.00066、レポートはコミットせず削除済み）
+  - `scripts/eval/README.md` に `--dataset` オプション・参照付き Judge の説明・著作権注意を追記
 - 2026-07-03: **Issue #20 クローズ**（T1〜T7 完了。見送り項目〔T6 の会話例拡充・知識エピソード化〕は再開条件付きで後継 Issue #34 に引き継ぎ）
   - ドキュメント反映 PR #33 マージ済み（`docs/issue20-improvements-spec.md` 新設。仕様・実測事実を集約）
   - 次の作業: **Issue #34「評価の高精度化とペルソナ設計の実証改善」**（本文に「実装コンテキスト（引き継ぎ）」セクションを追記済み。次セッションはまず Issue #34 を読むこと）

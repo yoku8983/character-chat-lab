@@ -37,25 +37,49 @@ function printRateSetDiff(label: string, before: RateSet, after: RateSet): void 
 }
 
 function printJudgeDiff(before: JudgeScores, after: JudgeScores): void {
-  console.log(
-    `  tone ${before.toneConsistency}→${after.toneConsistency} (${fmtDelta(
-      before.toneConsistency,
-      after.toneConsistency,
+  let line = `  tone ${before.toneConsistency}→${after.toneConsistency} (${fmtDelta(
+    before.toneConsistency,
+    after.toneConsistency,
+    false
+  )}) / knowledge ${before.knowledgeUse}→${after.knowledgeUse} (${fmtDelta(
+    before.knowledgeUse,
+    after.knowledgeUse,
+    false
+  )}) / persona ${before.personaMaintenance}→${after.personaMaintenance} (${fmtDelta(
+    before.personaMaintenance,
+    after.personaMaintenance,
+    false
+  )}) / natural ${before.naturalness}→${after.naturalness} (${fmtDelta(
+    before.naturalness,
+    after.naturalness,
+    false
+  )})`;
+
+  // referenceFidelity は両方に存在する場合のみ差分表示（片方に無ければ NaN を出さずスキップ）
+  if (typeof before.referenceFidelity === "number" && typeof after.referenceFidelity === "number") {
+    line += ` / refFidelity ${before.referenceFidelity}→${after.referenceFidelity} (${fmtDelta(
+      before.referenceFidelity,
+      after.referenceFidelity,
       false
-    )}) / knowledge ${before.knowledgeUse}→${after.knowledgeUse} (${fmtDelta(
-      before.knowledgeUse,
-      after.knowledgeUse,
-      false
-    )}) / persona ${before.personaMaintenance}→${after.personaMaintenance} (${fmtDelta(
-      before.personaMaintenance,
-      after.personaMaintenance,
-      false
-    )}) / natural ${before.naturalness}→${after.naturalness} (${fmtDelta(
-      before.naturalness,
-      after.naturalness,
-      false
-    )})`
-  );
+    )})`;
+  }
+
+  console.log(line);
+}
+
+function printAggregateReferenceFidelityDiff(
+  before: { referenceFidelity?: number },
+  after: { referenceFidelity?: number }
+): void {
+  if (typeof before.referenceFidelity === "number" && typeof after.referenceFidelity === "number") {
+    console.log(
+      `  refFidelity ${before.referenceFidelity.toFixed(2)}→${after.referenceFidelity.toFixed(2)} (${fmtDelta(
+        before.referenceFidelity,
+        after.referenceFidelity,
+        false
+      )})`
+    );
+  }
 }
 
 function main(): void {
@@ -80,6 +104,7 @@ function main(): void {
   printRateSetDiff("delta", before.aggregate.drift.delta, after.aggregate.drift.delta);
   console.log(" judge:");
   printJudgeDiff(before.aggregate.judge, after.aggregate.judge);
+  printAggregateReferenceFidelityDiff(before.aggregate, after.aggregate);
 
   console.log("\n--- シナリオ別 ---");
   const beforeById = new Map(before.scenarios.map((s) => [s.scenarioId, s]));

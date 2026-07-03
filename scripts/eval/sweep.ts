@@ -4,6 +4,7 @@ import { deriveMarkers } from "./markers";
 import { SCENARIOS, Scenario } from "./scenarios";
 import { runEval } from "./harness";
 import { writeSweepReport, SweepRunSummary } from "./report";
+import { loadDataset } from "./dataset";
 import { buildSystemPrompt, buildFewShotMessages } from "../../lib/prompt";
 
 const DEFAULT_MODELS = [
@@ -25,6 +26,7 @@ interface CliArgs {
   maxHistory: number;
   scenariosCount: number | null;
   maxTurns: number | null;
+  datasetPath?: string;
 }
 
 function printUsage(): void {
@@ -43,6 +45,7 @@ function printUsage(): void {
   --max-history <n>       履歴上限（既定: ${DEFAULT_MAX_HISTORY}、0 で無制限）
   --scenarios <n>         先頭 n 本のシナリオのみ実行（既定: 全 ${SCENARIOS.length} 本）
   --max-turns <n>         各シナリオの発話を先頭 n 個に切る（既定: 無制限）
+  --dataset <path>        参照付き Judge 用の正解データセット（JSON）のパス（既定: 未指定＝従来の4観点）
 
 --persona か --persona-file のどちらかが必須です。
 コスト注意: 構成数（models × temps）× シナリオ数 × ターン数の分だけ API 呼び出しが発生します。`);
@@ -96,6 +99,9 @@ function parseArgs(argv: string[]): CliArgs {
         break;
       case "--max-turns":
         args.maxTurns = Number(next());
+        break;
+      case "--dataset":
+        args.datasetPath = next();
         break;
       default:
         console.warn(`不明な引数を無視します: ${arg}`);
@@ -165,6 +171,14 @@ async function main(): Promise<void> {
       ? SCENARIOS.slice(0, args.scenariosCount)
       : SCENARIOS;
 
+  const dataset = args.datasetPath ? loadDataset(args.datasetPath) : undefined;
+  if (dataset && dataset.personaId !== persona.id) {
+    console.warn(
+      `警告: データセットの personaId ("${dataset.personaId}") と評価対象ペルソナの id ("${persona.id}") が一致しません。` +
+        `本番キャラを --persona-file で評価している場合は id が揺れることがあるため、意図的であれば無視して構いません。`
+    );
+  }
+
   const configCount = args.models.length * args.temps.length;
   const avgTurns = estimateAvgTurns(scenarios, args.maxTurns);
   const estimatedChatCalls = Math.round(configCount * scenarios.length * avgTurns);
@@ -198,6 +212,8 @@ async function main(): Promise<void> {
         scenarios,
         maxTurns: args.maxTurns,
         logPrefix,
+        dataset,
+        datasetPath: args.datasetPath,
       });
 
       if (report.meta.totalCostUsd !== null) {
@@ -214,6 +230,8 @@ async function main(): Promise<void> {
     }
   }
 
+  const hasReference = runs.some((r) => typeof r.aggregate.referenceFidelity === "number");
+
   console.log("\n=== スイープ比較表 ===");
   console.table(
     runs.map((r) => ({
@@ -226,6 +244,9 @@ async function main(): Promise<void> {
       knowledge: r.aggregate.judge.knowledgeUse.toFixed(2),
       persona: r.aggregate.judge.personaMaintenance.toFixed(2),
       natural: r.aggregate.judge.naturalness.toFixed(2),
+      ...(hasReference
+        ? { refFidelity: r.aggregate.referenceFidelity?.toFixed(2) ?? "-" }
+        : {}),
       cost: formatCost(r.totalCostUsd),
       skip: r.skippedCount,
     }))
@@ -241,6 +262,13 @@ async function main(): Promise<void> {
       scenarios: scenarios.length,
       maxTurns: args.maxTurns,
       createdAt: new Date().toISOString(),
+      dataset: dataset
+        ? {
+            ...(args.datasetPath ? { path: args.datasetPath } : {}),
+            personaId: dataset.personaId,
+            pairCount: dataset.referencePairs.length,
+          }
+        : null,
     },
     runs,
   });

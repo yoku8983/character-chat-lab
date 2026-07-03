@@ -4,6 +4,7 @@ import { deriveMarkers } from "./markers";
 import { SCENARIOS } from "./scenarios";
 import { writeReport, printSummary } from "./report";
 import { runEval } from "./harness";
+import { loadDataset } from "./dataset";
 import { buildSystemPrompt, buildFewShotMessages } from "../../lib/prompt";
 
 const DEFAULT_MODEL = "deepseek/deepseek-v4-flash";
@@ -19,6 +20,7 @@ interface CliArgs {
   maxHistory: number;
   scenariosCount: number | null;
   maxTurns: number | null;
+  datasetPath?: string;
 }
 
 function printUsage(): void {
@@ -35,6 +37,7 @@ function printUsage(): void {
   --max-history <n>       履歴上限（既定: ${DEFAULT_MAX_HISTORY}、0 で無制限）
   --scenarios <n>         先頭 n 本のシナリオのみ実行（既定: 全 ${SCENARIOS.length} 本）
   --max-turns <n>         各シナリオの発話を先頭 n 個に切る（既定: 無制限）
+  --dataset <path>        参照付き Judge 用の正解データセット（JSON）のパス（既定: 未指定＝従来の4観点）
 
 --persona か --persona-file のどちらかが必須です。`);
 }
@@ -77,6 +80,9 @@ function parseArgs(argv: string[]): CliArgs {
       case "--max-turns":
         args.maxTurns = Number(next());
         break;
+      case "--dataset":
+        args.datasetPath = next();
+        break;
       default:
         console.warn(`不明な引数を無視します: ${arg}`);
     }
@@ -112,7 +118,19 @@ async function main(): Promise<void> {
       ? SCENARIOS.slice(0, args.scenariosCount)
       : SCENARIOS;
 
-  console.log(`評価開始: persona=${persona.id} model=${args.model} judge=${args.judgeModel} scenarios=${scenarios.length}本`);
+  const dataset = args.datasetPath ? loadDataset(args.datasetPath) : undefined;
+  if (dataset && dataset.personaId !== persona.id) {
+    console.warn(
+      `警告: データセットの personaId ("${dataset.personaId}") と評価対象ペルソナの id ("${persona.id}") が一致しません。` +
+        `本番キャラを --persona-file で評価している場合は id が揺れることがあるため、意図的であれば無視して構いません。`
+    );
+  }
+
+  console.log(
+    `評価開始: persona=${persona.id} model=${args.model} judge=${args.judgeModel} scenarios=${scenarios.length}本${
+      dataset ? ` dataset=${args.datasetPath}(${dataset.referencePairs.length}件)` : ""
+    }`
+  );
 
   const { report, skippedCount } = await runEval({
     apiKey,
@@ -126,6 +144,8 @@ async function main(): Promise<void> {
     maxHistory: args.maxHistory,
     scenarios,
     maxTurns: args.maxTurns,
+    dataset,
+    datasetPath: args.datasetPath,
   });
 
   const filePath = writeReport(report);

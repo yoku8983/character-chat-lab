@@ -38,6 +38,7 @@ npm run eval -- --persona tetsu-oyaji --scenarios 1 --max-turns 4
 | `--max-history <n>` | チャット履歴の上限（`lib/history.ts` の `capMessageHistory` を使用）。`0` で無制限 | `30` |
 | `--scenarios <n>` | 先頭 n 本のシナリオのみ実行（全 10 本のうちスモーク用に絞る） | 全 10 本 |
 | `--max-turns <n>` | 各シナリオの発話を先頭 n 個に切る（スモーク用） | 無制限 |
+| `--dataset <path>` | 参照付き Judge 用の正解データセット（JSON）のパス。指定時のみ Judge が第5観点 `referenceFidelity` を採点する（後述） | 未指定（従来の4観点） |
 
 レポートは `eval/reports/` に JSON で書き出されます（Git 管理外）。
 
@@ -83,9 +84,39 @@ npm run eval:sweep -- --persona tetsu-oyaji --models deepseek/deepseek-v4-flash,
 | `--max-history <n>` | チャット履歴の上限 | `30` |
 | `--scenarios <n>` | 先頭 n 本のシナリオのみ実行 | 全 10 本 |
 | `--max-turns <n>` | 各シナリオの発話を先頭 n 個に切る | 無制限 |
+| `--dataset <path>` | 参照付き Judge 用の正解データセット（JSON）のパス | 未指定（従来の4観点） |
 
 実行結果は構成ごとの比較表として `console.table` に出力され、全構成をまとめた JSON レポートが
 `eval/reports/sweep-<日時>-<persona>.json` として書き出されます（Git 管理外）。
+
+### 参照付き Judge（正解データセット評価）
+
+`--dataset <path>` で「状況→原作準拠の模範応答」のペア集（正解データセット）を指定すると、
+Judge は既存4観点に加えて第5観点 `referenceFidelity`（参照忠実度・人物同一性）を採点します。
+正解例は Judge の user コンテンツに `## 正解応答例（この人物の本物の応答）` として注入されます。
+
+- `referenceFidelity` は 1〜5 の厳格な減点式 rubric（5=正解例と同じ人物と区別できない〜1=別人）
+- 正解例の文言をそのまま流用しているだけの応答は高評価にしない、正解例にない状況でも同じ人物ら
+  しさが保てているかを重視する、という過適合防止の指示を rubric に含めています
+- `--dataset` を指定しない場合は従来どおり4観点のみで、プロンプト・挙動は完全に後方互換です
+- 集計（`computeAggregate`）は `referenceFidelity` を持つ（かつ Judge が失敗していない）シナリオ
+  のみで平均します。該当シナリオが1件も無ければ集計に含まれません（`undefined`）
+- `printSummary` はシナリオ別テーブルに `refFidelity` 列を追加します（`--dataset` 未指定時は
+  列自体を出しません）。`eval:compare` も両方のレポートに `referenceFidelity` がある場合のみ差分
+  を表示します（片方に無ければスキップし、`NaN` は出しません）
+
+#### データセット形式・著作権の注意（重要）
+
+データセット JSON のフォーマットは `scripts/eval/dataset.ts` の `EvalDataset` / `ReferencePair`
+を参照してください。データセット本体は `scripts/eval/datasets/` に置きますが、**このディレクトリ
+は `.gitignore` で隔離されています**（`README.md` とサンプル `example-*.json` のみ追跡対象）。
+
+**原作のキャラクターの台詞・エピソードを含む実キャラ用データセットは絶対にコミットしないでくだ
+さい。** 本番キャラのデータセットはローカルでのみ保持し、リポジトリには含めない運用とします。
+詳細は `scripts/eval/datasets/README.md` を参照してください。
+
+データセットの `personaId` と評価対象ペルソナの `id` が食い違う場合、`run.ts` / `sweep.ts` は
+警告を出しますが実行は中断しません（本番キャラは `--persona-file` 運用で `id` が揺れうるため）。
 
 ## メトリクスの意味
 

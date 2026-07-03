@@ -20,12 +20,14 @@ export interface EvalReport {
     maxHistory: number;
     createdAt: string;
     totalCostUsd: number | null;
+    dataset: { path?: string; personaId: string; pairCount: number } | null;
   };
   scenarios: ScenarioResult[];
   aggregate: {
     drift: DriftStats;
     judge: JudgeScores;
     judgeFailedCount: number;
+    referenceFidelity?: number;
   };
 }
 
@@ -55,6 +57,10 @@ function averageRateSet(sets: RateSet[]): RateSet {
  * judge が失敗したシナリオ（judge.failed === true）はスコアが 0 固定
  * （正常レンジ 1〜5 の外）で平均を歪めるため、judge 平均の算出からは除外する。
  * drift は judge の成否と独立に計測されるため、従来どおり全シナリオを対象とする。
+ *
+ * referenceFidelity は「failed でなく、かつ referenceFidelity が number のシナリオ」のみで
+ * 平均する。参照付きモードで実行していない・全て失敗した等で対象が1件も無ければ aggregate には
+ * 含めない（undefined）。
  */
 export function computeAggregate(scenarios: ScenarioResult[]): EvalReport["aggregate"] {
   if (scenarios.length === 0) {
@@ -86,7 +92,14 @@ export function computeAggregate(scenarios: ScenarioResult[]): EvalReport["aggre
           comment: "",
         };
 
-  return { drift, judge, judgeFailedCount };
+  const referenceFidelityValues = validScenarios
+    .map((s) => s.judge.referenceFidelity)
+    .filter((v): v is number => typeof v === "number");
+
+  const referenceFidelity =
+    referenceFidelityValues.length > 0 ? average(referenceFidelityValues) : undefined;
+
+  return { drift, judge, judgeFailedCount, ...(referenceFidelity !== undefined ? { referenceFidelity } : {}) };
 }
 
 export interface SweepRunSummary {
@@ -105,6 +118,7 @@ export interface SweepReport {
     scenarios: number;
     maxTurns: number | null;
     createdAt: string;
+    dataset: { path?: string; personaId: string; pairCount: number } | null;
   };
   runs: SweepRunSummary[];
 }
@@ -157,6 +171,11 @@ export function printSummary(report: EvalReport): void {
   console.log(`maxHistory: ${meta.maxHistory}`);
   console.log(`作成日時: ${meta.createdAt}`);
   console.log(`総コスト: ${meta.totalCostUsd !== null ? `$${meta.totalCostUsd.toFixed(6)}` : "不明"}`);
+  if (meta.dataset) {
+    console.log(`データセット: ${meta.dataset.path ?? meta.dataset.personaId}（参照ペア ${meta.dataset.pairCount} 件）`);
+  }
+
+  const hasReference = scenarios.some((s) => typeof s.judge.referenceFidelity === "number");
 
   console.log("\n--- シナリオ別 ---");
   console.table(
@@ -170,6 +189,9 @@ export function printSummary(report: EvalReport): void {
       knowledge: s.judge.failed ? "FAIL" : s.judge.knowledgeUse,
       persona: s.judge.failed ? "FAIL" : s.judge.personaMaintenance,
       natural: s.judge.failed ? "FAIL" : s.judge.naturalness,
+      ...(hasReference
+        ? { refFidelity: s.judge.failed ? "FAIL" : s.judge.referenceFidelity ?? "-" }
+        : {}),
     }))
   );
 
@@ -184,6 +206,9 @@ export function printSummary(report: EvalReport): void {
       2
     )} naturalness=${aggregate.judge.naturalness.toFixed(2)}`
   );
+  if (aggregate.referenceFidelity !== undefined) {
+    console.log(`Judge 平均: referenceFidelity=${aggregate.referenceFidelity.toFixed(2)}`);
+  }
   if (aggregate.judgeFailedCount > 0) {
     console.log(`Judge 失敗数: ${aggregate.judgeFailedCount} 件（平均には含まれていません）`);
   }
