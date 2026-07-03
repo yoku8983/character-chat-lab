@@ -25,6 +25,7 @@ export interface EvalReport {
   aggregate: {
     drift: DriftStats;
     judge: JudgeScores;
+    judgeFailedCount: number;
   };
 }
 
@@ -50,6 +51,10 @@ function averageRateSet(sets: RateSet[]): RateSet {
 /**
  * 全シナリオの drift/judge を単純平均する。scenarios が空の場合は
  * ゼロ値で埋めたスタブを返す（呼び出し側でシナリオ0件は起きない想定だが安全策）。
+ *
+ * judge が失敗したシナリオ（judge.failed === true）はスコアが 0 固定
+ * （正常レンジ 1〜5 の外）で平均を歪めるため、judge 平均の算出からは除外する。
+ * drift は judge の成否と独立に計測されるため、従来どおり全シナリオを対象とする。
  */
 export function computeAggregate(scenarios: ScenarioResult[]): EvalReport["aggregate"] {
   if (scenarios.length === 0) {
@@ -57,6 +62,7 @@ export function computeAggregate(scenarios: ScenarioResult[]): EvalReport["aggre
     return {
       drift: { early: emptyRateSet, late: emptyRateSet, delta: emptyRateSet },
       judge: { toneConsistency: 0, knowledgeUse: 0, personaMaintenance: 0, naturalness: 0, comment: "" },
+      judgeFailedCount: 0,
     };
   }
 
@@ -66,15 +72,21 @@ export function computeAggregate(scenarios: ScenarioResult[]): EvalReport["aggre
     delta: averageRateSet(scenarios.map((s) => s.drift.delta)),
   };
 
-  const judge: JudgeScores = {
-    toneConsistency: average(scenarios.map((s) => s.judge.toneConsistency)),
-    knowledgeUse: average(scenarios.map((s) => s.judge.knowledgeUse)),
-    personaMaintenance: average(scenarios.map((s) => s.judge.personaMaintenance)),
-    naturalness: average(scenarios.map((s) => s.judge.naturalness)),
-    comment: "",
-  };
+  const validScenarios = scenarios.filter((s) => !s.judge.failed);
+  const judgeFailedCount = scenarios.length - validScenarios.length;
 
-  return { drift, judge };
+  const judge: JudgeScores =
+    validScenarios.length === 0
+      ? { toneConsistency: 0, knowledgeUse: 0, personaMaintenance: 0, naturalness: 0, comment: "" }
+      : {
+          toneConsistency: average(validScenarios.map((s) => s.judge.toneConsistency)),
+          knowledgeUse: average(validScenarios.map((s) => s.judge.knowledgeUse)),
+          personaMaintenance: average(validScenarios.map((s) => s.judge.personaMaintenance)),
+          naturalness: average(validScenarios.map((s) => s.judge.naturalness)),
+          comment: "",
+        };
+
+  return { drift, judge, judgeFailedCount };
 }
 
 export interface SweepRunSummary {
@@ -154,10 +166,10 @@ export function printSummary(report: EvalReport): void {
       turns: s.turns,
       "late(first/end/catch)": formatRateSet(s.drift.late),
       "delta(first/end/catch)": formatRateSet(s.drift.delta),
-      tone: s.judge.toneConsistency,
-      knowledge: s.judge.knowledgeUse,
-      persona: s.judge.personaMaintenance,
-      natural: s.judge.naturalness,
+      tone: s.judge.failed ? "FAIL" : s.judge.toneConsistency,
+      knowledge: s.judge.failed ? "FAIL" : s.judge.knowledgeUse,
+      persona: s.judge.failed ? "FAIL" : s.judge.personaMaintenance,
+      natural: s.judge.failed ? "FAIL" : s.judge.naturalness,
     }))
   );
 
@@ -172,4 +184,7 @@ export function printSummary(report: EvalReport): void {
       2
     )} naturalness=${aggregate.judge.naturalness.toFixed(2)}`
   );
+  if (aggregate.judgeFailedCount > 0) {
+    console.log(`Judge 失敗数: ${aggregate.judgeFailedCount} 件（平均には含まれていません）`);
+  }
 }
