@@ -118,6 +118,35 @@ Judge は既存4観点に加えて第5観点 `referenceFidelity`（参照忠実�
 データセットの `personaId` と評価対象ペルソナの `id` が食い違う場合、`run.ts` / `sweep.ts` は
 警告を出しますが実行は中断しません（本番キャラは `--persona-file` 運用で `id` が揺れうるため）。
 
+### 知識クイズ評価（ハルシネーション検出の自動化）
+
+キャラクター固有知識の正誤・捏造（ハルシネーション）を、multi-turn の口調評価とは別に単発 QA で
+機械判定します。`--dataset` で指定する JSON に `knowledgeQuiz` 配列（`scripts/eval/dataset.ts` の
+`QuizItem`）を含めておくと実行できます。フォーマットは `scripts/eval/datasets/README.md` を参照。
+
+```bash
+npm run eval:quiz -- --persona tetsu-oyaji --dataset scripts/eval/datasets/example-tetsu-oyaji.json
+```
+
+#### オプション一覧
+
+| オプション | 説明 | 既定値 |
+| --- | --- | --- |
+| `--persona <id>` / `--persona-file <path>` | 評価対象ペルソナ（どちらか必須） | - |
+| `--dataset <path>` | `knowledgeQuiz` を含む正解データセット（JSON）のパス（必須） | - |
+| `--model <id>` | 被評価モデル | `deepseek/deepseek-v4-flash` |
+| `--temperature <num>` | temperature（指定時のみ API に送る） | 未指定 |
+
+`npm run eval`（multi-turn 口調評価）と異なり、履歴管理（`--max-history` 等）や Judge モデルは
+使いません。各設問をペルソナへの単発ユーザー発話として送り、`scripts/eval/quiz-grader.ts` の
+`gradeQuizAnswer`（正規表現・文字列マッチのみの機械判定、LLM を使わない）で採点します。
+
+コンソールには設問ごとの ○/× と、不正解時は原因判定用に応答全文を出力します。正答率・総コストの
+サマリに続けてレポート JSON を `eval/reports/quiz-<日時>-<persona>-<model>.json` に書き出します
+（`eval/reports/` は Git 管理外）。
+
+**コスト目安**: 設問数分の単発 QA 呼び出しのみなので、5問程度なら $0.001 未満（DeepSeek V4 Flash 想定）。
+
 ## メトリクスの意味
 
 ### (A) 口調ドリフト検出（正規表現ベース）

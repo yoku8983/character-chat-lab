@@ -10,7 +10,7 @@
 
 ## 次にやること（Issue #34 のタスク、優先順）
 
-1. ~~T1: 正解データセット評価と参照付き Judge~~ ✅ 完了（`feat/eval-reference-judge`。詳細は末尾「完了済み」）
+1. ~~T1: 正解データセット評価と参照付き Judge（知識クイズ含め完了）~~ ✅ 完了（`feat/eval-reference-judge` + `feat/eval-knowledge-quiz`。詳細は末尾「完了済み」）
 2. **T2: 品質回帰の継続トラッキング**（高）— 次の最優先
 3. **T3: ペルソナスキーマの実証改善**（中）— T1 の尖った評価（参照付き Judge）で A/B 検証しながら進める
 
@@ -66,6 +66,13 @@
 
 ## 完了済み（直近）
 
+- 2026-07-04: **Issue #34 T1「知識クイズ評価（ハルシネーション検出の自動化）」完了**（ブランチ `feat/eval-knowledge-quiz`）
+  - `scripts/eval/dataset.ts`: `EvalDataset` に `knowledgeQuiz?: QuizItem[]` を正式フィールドとして追加（`QuizItem` = `question` / `mustContain` / `mustNotContain?` / `notes?`）。`loadDataset` は `knowledgeQuiz` 指定時に各要素を検証し、`mustContain`・`mustNotContain` が両方空／欠落の設問は日本語エラーで throw（「知らないと答えるべき設問」は `mustContain: []` + `mustNotContain` 必須で判定するため）
+  - `scripts/eval/quiz-grader.ts` 新設: 純粋関数 `gradeQuizAnswer(item, answer)`。正規化は「空白（全角含む）除去＋小文字化」のみ（過剰な正規化はしない）。`mustContain` の各要素は `|` 区切りで表記ゆれを OR 許容、全要素充足で AND 判定。`mustNotContain` はいずれか1つでもヒットしたら不正解
+  - `scripts/eval/quiz.ts` 新設（`npm run eval:quiz`）: `buildSystemPrompt` + `buildFewShotMessages` でプロンプトを組み、各設問を単発ユーザー発話として `chatCompletion` に投げ `gradeQuizAnswer` で採点。コンソールに ○/× テーブル・正答率・総コスト・不正解時は応答全文を出力。レポート JSON を `eval/reports/quiz-<日時>-<persona>-<model>.json` に保存（`report.ts` の `sanitizeForFilename` / `REPORTS_DIR` を export して再利用）。`personaId` 不一致時は `run.ts` と同じ文言で警告のみ
+  - `scripts/eval/datasets/example-tetsu-oyaji.json` に `knowledgeQuiz` 5問追加: ドメイン知識から正答可能な3問（燃料=石炭、動力の仕組み=ボイラー/シリンダー・ピストン、D51製造数=1,115両）+「知らないと答えるべき」2問（具体的な路線名・亡き妻の名前。YAML に記載がなく、モデルが捏造しがちな固有名詞を `mustNotContain` に列挙）
+  - `scripts/eval/README.md` / `scripts/eval/datasets/README.md` に知識クイズの使い方・フォーマット・採点仕様（AND/OR・正規化・「知らないと答えるべき設問」の書き方）を追記。`package.json` に `eval:quiz` スクリプト追加
+  - 検証: tsx ワンオフスクリプトで `gradeQuizAnswer`（全充足/一部欠落/`|`候補OR一致/mustNotContainヒット/mustContain空+mustNotContainのみ/空白・大小文字正規化）と `loadDataset` の `knowledgeQuiz` バリデーション（正常系2種・両方空エラー・question空エラー・型不正エラー・knowledgeQuiz非配列エラー）を全通過。`npx tsc --noEmit` パス。既存 `npm run eval -- --persona tetsu-oyaji --scenarios 1 --max-turns 2`（`--dataset` なし）が従来どおり動作することを確認（回帰なし）。実スモーク `npm run eval:quiz -- --persona tetsu-oyaji --dataset scripts/eval/datasets/example-tetsu-oyaji.json` 実行 → 4/5正解（80%）、コスト $0.000696。不正解1件は「具体的な路線名」設問でモデルが YAML にない「根室本線」を実際に捏造したケース（設問設計の問題ではなく、意図どおりハルシネーション検出が機能した例）と判断し、キーワード調整はせず結果をそのまま採用
 - 2026-07-04: **Issue #34 T1「参照付き Judge + 正解データセット隔離」完了**（ブランチ `feat/eval-reference-judge`）
   - `scripts/eval/dataset.ts` 新設: `EvalDataset` / `ReferencePair`（`situation` / `reference` / `canon` / `notes?`）と `loadDataset(filePath)`。必須フィールド欠落・型不正・`referencePairs` 空配列は日本語エラーで throw、未知フィールドは無視（将来の知識クイズ `knowledgeQuiz` 追加に備える）
   - `scripts/eval/datasets/` 新設・隔離: `.gitignore` に `scripts/eval/datasets/*` + `!README.md` + `!example-*.json` を追加。**原作台詞を含む実キャラのデータセットは絶対にコミットしない**運用（`datasets/README.md` に明記）。サンプル `example-tetsu-oyaji.json`（架空キャラ用、canon:true 3件/canon:false 2件）をコミット
