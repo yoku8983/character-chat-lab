@@ -3,6 +3,7 @@ import { Markers, scoreText, computeDrift, TurnHit } from "./markers";
 import { judgeConversation } from "./judge";
 import { EvalReport, ScenarioResult, computeAggregate } from "./report";
 import { Scenario } from "./scenarios";
+import { EvalDataset } from "./dataset";
 import { capMessageHistory } from "../../lib/history";
 import { ChatMessage, Persona } from "../../lib/types";
 
@@ -19,6 +20,8 @@ export interface EvalConfig {
   scenarios: Scenario[]; // 実行対象（先頭 n 本など呼び出し側で絞る）
   maxTurns: number | null; // 各シナリオの発話を先頭 n 個に絞る（null=全部）
   logPrefix?: string; // 進捗ログの接頭辞（sweep で "flash@0.3 " 等）
+  dataset?: EvalDataset; // 参照付き Judge 用の正解データセット（未指定なら従来どおり4観点）
+  datasetPath?: string; // レポート meta 記録用（run.ts の --dataset 値）
 }
 
 export interface EvalRunResult {
@@ -83,6 +86,7 @@ export async function runEval(cfg: EvalConfig): Promise<EvalRunResult> {
         judgeModel: cfg.judgeModel,
         persona: cfg.persona,
         transcript: history,
+        referencePairs: cfg.dataset?.referencePairs,
       });
 
       scenarioResults.push({
@@ -118,6 +122,13 @@ export async function runEval(cfg: EvalConfig): Promise<EvalRunResult> {
       maxHistory: cfg.maxHistory,
       createdAt: new Date().toISOString(),
       totalCostUsd: totalCost,
+      dataset: cfg.dataset
+        ? {
+            ...(cfg.datasetPath ? { path: cfg.datasetPath } : {}),
+            personaId: cfg.dataset.personaId,
+            pairCount: cfg.dataset.referencePairs.length,
+          }
+        : null,
     },
     scenarios: scenarioResults,
     aggregate,
