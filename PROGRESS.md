@@ -64,6 +64,17 @@
 - **実装中に設計レベルの想定外**（例: OpenRouter の usage が仕様どおり返らない、キャッシュ挙動が分析と異なる）が出たら: この PROGRESS.md に事実を記録し、独断で設計変更せず、設計レビュー用の Fable セッションに「小さく切り出した質問」として持ち込む
 - モデル運用: メインセッション = Opus 4.8、探索・読み取り・機械的作業のサブエージェント = Sonnet / Haiku。Fable は設計判断の単発相談のみ
 
+## 中断中の作業（2026-07-04 セッション終了時点・次セッションはここから）
+
+- **評価 GUI + usage ダッシュボード強化**: 設計・実装計画まで完了、**実装は未着手**
+  - 設計書: `docs/superpowers/specs/2026-07-04-eval-gui-usage-dashboard-design.md`（ユーザー承認済み）
+  - 実装計画: `docs/superpowers/plans/2026-07-04-eval-gui-usage-dashboard.md`（Task 1〜10、2PR 分割はユーザー合意済み）
+  - 両方ともブランチ `feat/eval-gui-usage-dashboard` にコミット済み
+  - **未確認の判断が1点**: 日別/月別/今日/今月の集計境界を UTC→JST 基準に変える計画（Task 1）へのユーザー OK をまだ得ていない。実装開始前に確認すること
+  - 進め方: PR①（`feat/usage-dashboard`、Task 1〜4）→ マージ後に PR②（`feat/eval-gui`、Task 5〜10）。実装は Sonnet サブエージェント委譲 + メインがレビュー
+- 関連の合意事項（このセッションでの議論・未着手）: 実キャラ運用は「ローカル私設リポジトリ（personas + datasets 並置）を master とし、本番 Turso へはペルソナ JSON のみ push」方針で合意。`persona:pull` / `persona:push` スクリプトは未実装（Issue 未起票）。また**本番全 API が無認証**である問題を調査で確認済み（別 Issue 起票推奨・未起票）
+- Issue #34 T1 の残り: 本番キャラの正解ペア 20〜50 件 + クイズ設問の作成（開発者監修・リポジトリ外運用。ユーザーと協働）
+
 ## 完了済み（直近）
 
 - 2026-07-04: **Issue #34 T1「知識クイズ評価（ハルシネーション検出の自動化）」完了**（ブランチ `feat/eval-knowledge-quiz`）
