@@ -163,12 +163,16 @@ export async function judgeConversation(args: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const parsed: any = JSON.parse(match[0]);
 
+    // Judge が referenceFidelity を出力し損ねた場合、clampScore は 0（正常レンジ外）を
+    // 返すため、そのまま含めると集計平均を歪める。有効値（1〜5）のときのみ含める
+    const referenceFidelity = clampScore(parsed.referenceFidelity);
+
     return {
       toneConsistency: clampScore(parsed.toneConsistency),
       knowledgeUse: clampScore(parsed.knowledgeUse),
       personaMaintenance: clampScore(parsed.personaMaintenance),
       naturalness: clampScore(parsed.naturalness),
-      ...(hasReference ? { referenceFidelity: clampScore(parsed.referenceFidelity) } : {}),
+      ...(hasReference && referenceFidelity >= 1 ? { referenceFidelity } : {}),
       comment: typeof parsed.comment === "string" ? parsed.comment : "",
     };
   } catch (err) {
