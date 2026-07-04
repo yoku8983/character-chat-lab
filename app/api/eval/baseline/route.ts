@@ -80,7 +80,9 @@ export async function POST(request: Request) {
     typeof late.firstPerson !== "number" ||
     typeof late.sentenceEnding !== "number" ||
     !Array.isArray(report.scenarios) ||
-    report.scenarios.length === 0
+    report.scenarios.length === 0 ||
+    typeof (report as EvalReport).meta?.persona !== "string" ||
+    (report as EvalReport).meta.persona.length === 0
   ) {
     return Response.json(
       { error: "このレポートはベースラインに使えません（形式が古い可能性があります）" },

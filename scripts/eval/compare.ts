@@ -126,7 +126,16 @@ function printCheckResult(result: RegressionResult): void {
 
 function main(): void {
   const args = process.argv.slice(2);
-  const positional = args.filter((a) => !a.startsWith("--"));
+  const VALUE_FLAGS = new Set(["--judge-threshold", "--marker-threshold"]);
+  const positional: string[] = [];
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a.startsWith("--")) {
+      if (VALUE_FLAGS.has(a)) i++; // 次のトークンはフラグの値なので位置引数にしない
+      continue;
+    }
+    positional.push(a);
+  }
   const [beforePath, afterPath] = positional;
 
   if (!beforePath || !afterPath) {
