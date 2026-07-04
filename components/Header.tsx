@@ -17,6 +17,7 @@ interface HeaderProps {
   memoryCount: number;
   onToggleSidebar?: () => void;
   showSidebarToggle?: boolean;
+  evalUiEnabled?: boolean;
 }
 
 function ModeButtons({
@@ -65,6 +66,7 @@ export default function Header({
   memoryCount,
   onToggleSidebar,
   showSidebarToggle,
+  evalUiEnabled,
 }: HeaderProps) {
   return (
     <header
@@ -103,6 +105,15 @@ export default function Header({
           >
             利用状況
           </Link>
+          {evalUiEnabled && (
+            <Link
+              href="/eval"
+              className="px-3 py-1.5 rounded text-sm transition-colors whitespace-nowrap"
+              style={{ backgroundColor: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border)" }}
+            >
+              評価
+            </Link>
+          )}
         </div>
       </div>
 
@@ -176,6 +187,15 @@ export default function Header({
         >
           利用状況
         </Link>
+        {evalUiEnabled && (
+          <Link
+            href="/eval"
+            className="px-6 py-2.5 text-lg rounded transition-colors whitespace-nowrap"
+            style={{ backgroundColor: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border)" }}
+          >
+            評価
+          </Link>
+        )}
       </div>
     </header>
   );
