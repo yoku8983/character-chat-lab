@@ -6,13 +6,13 @@
 
 - MVP1・MVP2 完了。Azure Container Apps 本番デプロイ済み（libSQL/Turso + スケールゼロ）
 - **Issue #20「ペルソナデータ設計・コンテキスト戦略・コスト最適化の総合改善」は 2026-07-03 にクローズ**（T1〜T7 完了。仕様書反映 PR #33 マージ済み）
-- 後継の **Issue #34「評価の高精度化とペルソナ設計の実証改善」** に着手フェーズ。**T1「正解データセット評価と参照付き Judge」は 2026-07-04 に実装完了**（詳細は末尾「完了済み」）。次は T2「品質回帰の継続トラッキング」
+- 後継の **Issue #34「評価の高精度化とペルソナ設計の実証改善」** に着手フェーズ。**T1「正解データセット評価と参照付き Judge」・T2「品質回帰の継続トラッキング」は 2026-07-04 に実装完了**（詳細は末尾「完了済み」）。次は T3「ペルソナスキーマの実証改善」
 
 ## 次にやること（Issue #34 のタスク、優先順）
 
 1. ~~T1: 正解データセット評価と参照付き Judge（知識クイズ含め完了）~~ ✅ 完了（`feat/eval-reference-judge` + `feat/eval-knowledge-quiz`。詳細は末尾「完了済み」）
-2. **T2: 品質回帰の継続トラッキング**（高）— 次の最優先
-3. **T3: ペルソナスキーマの実証改善**（中）— T1 の尖った評価（参照付き Judge）で A/B 検証しながら進める
+2. ~~T2: 品質回帰の継続トラッキング~~ ✅ 完了（`feat/eval-regression-tracking`。詳細は末尾「完了済み」）
+3. **T3: ペルソナスキーマの実証改善**（中）— 次の最優先。T1 の尖った評価（参照付き Judge）で A/B 検証しながら進める
 
 タスクの詳細・チェックボックスは Issue #34 を参照し、完了したら Issue 側のチェックを更新すること。
 
@@ -77,6 +77,21 @@
 
 ## 完了済み（直近）
 
+- 2026-07-04: **Issue #34 T2「品質回帰の継続トラッキング」完了**（ブランチ `feat/eval-regression-tracking`、`feat/eval-gui-usage-dashboard` から分岐）
+  - `scripts/eval/regression.ts` 新設: 純粋関数 `checkRegression(baseline, current, thresholds)`。Judge 各観点（口調一貫性・知識活用度・人格維持・自然さ・参照忠実度〔両方にある場合のみ〕）は **−0.5 以上**、口調マーカー（一人称・語尾）の late 出現率は **−15pt 以上**の下落で FAIL。**境界値ちょうど（`baseline - current >= threshold`）も FAIL**（ユーザー確定仕様）。CLI (`compare.ts --check`) と GUI (API route) の両方がこの一関数を共有し判定基準のズレを防止
+  - CLI: `npm run eval:compare -- <before> <after> --check [--judge-threshold 0.5] [--marker-threshold 15]`。PASS で `exit 0`、FAIL で `exit 1`（CI 等での利用を想定）
+  - `lib/eval-ui/baseline.ts` 新設: `saveBaseline` / `loadBaseline` / `listBaselines`。ベースラインは `eval/baselines/<personaId>.json` に保存（`eval/reports/` と同様に Git 管理外）。`GET/POST /api/eval/baseline` で一覧取得・レポートをベースラインに設定（形式検証・クイズレポート拒否あり）
+  - `POST /api/eval/check`: 指定ペルソナのベースラインと**同一構成**（model/temperature/シナリオ数/ターン数/データセット）で再評価ジョブを実行し、完了時に `checkRegression` の結果をジョブ状態の `regression` フィールドに格納。中断（cancelled）の場合は `regression` は `null` のまま
+  - GUI: `/eval` の実行履歴に「ベースラインに設定」ボタン（多ターン評価のみ）、上部に「回帰チェック」セクション（ワンボタン実行 → 完了後 PASS/FAIL バッジ＋観点別テーブル。中断時は「中断されたため判定していません」）。ヘッダーに `EVAL_UI_ENABLED` 時のみ表示される「評価」リンクを追加（デスクトップ・モバイル両方、`/` ページを RSC 化してフラグを埋め込み）
+  - **e2e 実施（実 API・縮小構成、tetsu-oyaji）**: `EVAL_UI_ENABLED=1 npm run dev` を停止した状態から起動し、`curl` で `/eval` 200・`/` の RSC payload に `evalUiEnabled":true` を確認（ブラウザ目視ができない環境のため、この方法で代替。EvalConsole 側の文言・表示ロジックはコード上確認済み）。API を直接叩いて以下を実施・記録:
+    - 1シナリオ×2ターンの評価実行 → 完了 →「ベースラインに設定」(`POST /api/eval/baseline`) → `POST /api/eval/check` → 完了時の `regression` フィールドを実測（`{"pass":true, findings: [口調一貫性 5→5 (Δ0), 知識活用度 5→5, 人格維持 5→5, 自然さ 5→5, 一人称late 100%→100%, 語尾late 100%→100%], skipped: []}`。同一構成なので想定通り PASS）
+    - 実行中に別ジョブを起動 → **`409 {"error":"別の評価が実行中です"}`** を確認
+    - 2シナリオ構成で実行中に `POST /api/eval/cancel` → `status:"cancelled"`・`regression:null` を確認（**判明した仕様**: `harness.ts` の `shouldCancel` はシナリオ境界でのみチェックするため、1シナリオ構成では中断が効かず必ず完走する。2シナリオ以上で初めて中断がテストできる。バグではないが e2e 設計上の留意点として記録）
+    - CLI: 実際に生成された baseline JSON と check 実行後のレポート JSON 2枚で `npm run eval:compare -- --check` を実行 → コンソール表 + `✅ 回帰チェック PASS` + `exit 0` を確認
+    - **実測コスト合計 $0.00284**（レポート10枚、想定〔$0.01未満〕の範囲内）
+    - **調査のみ・修正不要と判断した観察事項**: `next dev` の on-demand-entries（アイドル時のルート解放）により、`/api/eval/status` 等をポーリング間隔を大きく空けて手動 curl した場合に一時的にジョブ状態が `null` に見える瞬間があった。EvalConsole の実ポーリング間隔（2秒間隔で継続）では発生しない dev モード固有の現象であることを継続ポーリングで再現・反証済み。`npx next build` の出力でも `/api/eval/status` 等は全て `ƒ (Dynamic)` としてマークされており、本番ビルドでは静的キャッシュされないことを確認。コード修正は行っていない（Interfaces 変更なしという本タスクの方針どおり）
+  - **ビルド確認**: dev サーバー停止 → `npx next build` 成功（新規追加ルート含む全 API route が `ƒ Dynamic` として出力）→ `rm -rf .next` → `npx tsc --noEmit` エラーなし
+  - ドキュメント: `scripts/eval/README.md` に「品質回帰チェックの運用」章（いつやるか／初回のベースライン作成／改修後のチェック／FAIL時の対応／判定基準／CLI補足／注意、の順）を新設。ルート `README.md` の `/eval` 説明にベースライン設定・回帰チェックの段落を追記
 - 2026-07-04: **評価 GUI PR②「評価コンソール `/eval`」実装完了**（ブランチ `feat/eval-gui`、main から分岐。PR 作成待ち）
   - Task 5: `scripts/eval/harness.ts` に `onProgress`（シナリオ進捗通知）・`shouldCancel`（中断チェック）・`cancelled`（結果フラグ）フックを追加（すべて optional。既存 CLI `npm run eval` の挙動は不変）
   - Task 6: `scripts/eval/quiz-runner.ts` 新設。`quiz.ts` にあった `runQuiz` / `writeQuizReport` と型を移設し、CLI (`npm run eval:quiz`) からも GUI からも共通利用。CLI 挙動は同等

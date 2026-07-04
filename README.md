@@ -279,7 +279,13 @@ EVAL_UI_ENABLED=1 npm run dev
 ```
 
 http://localhost:3000/eval を開くと、多ターン評価・知識クイズの実行フォーム、実行中の進捗表示と中断、
-過去レポートの一覧・詳細表示が使えます。詳細は [scripts/eval/README.md](scripts/eval/README.md) を参照。
+過去レポートの一覧・詳細表示が使えます。ヘッダーの「評価」リンク（`EVAL_UI_ENABLED` 有効時のみ表示）
+からも遷移できます。
+
+さらに、実行履歴からレポートを「ベースラインに設定」しておけば、以降は「回帰チェック」セクションの
+ワンボタン実行で同一構成の再評価を走らせ、ベースラインと比較した PASS / FAIL 判定を確認できます
+（品質回帰の継続チェック）。詳細は [scripts/eval/README.md](scripts/eval/README.md) の「品質回帰チェッ
+クの運用」を参照。
 
 ## アーキテクチャ
 
