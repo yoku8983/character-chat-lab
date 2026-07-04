@@ -11,12 +11,19 @@ export interface KnowledgeDomain {
   content: string;
 }
 
+export interface Relationship {
+  name: string;       // 相手の名前
+  address_as: string; // 呼び方
+  attitude: string;   // 態度・距離感
+}
+
 export interface Persona {
   id: string;
   name: string;
   identity: {
     personality: string;
     background: string;
+    point_in_time?: string; // 物語上のどの時点のキャラか（時系列混在ハルシネーション防止）
     speaking_style: SpeakingStyle;
   };
   knowledge: {
@@ -29,6 +36,8 @@ export interface Persona {
   behavior: {
     constraints: string[];
   };
+  user_role?: string;             // ユーザーはキャラにとって誰か（例: プロデューサー）
+  relationships?: Relationship[]; // 主要人物への呼び方・態度
   examples: { user: string; assistant: string }[];
   anti_examples?: { user: string; assistant: string }[];
 }

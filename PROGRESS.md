@@ -12,7 +12,7 @@
 
 1. ~~T1: 正解データセット評価と参照付き Judge（知識クイズ含め完了）~~ ✅ 完了（`feat/eval-reference-judge` + `feat/eval-knowledge-quiz`。詳細は末尾「完了済み」）
 2. ~~T2: 品質回帰の継続トラッキング~~ ✅ 完了（`feat/eval-regression-tracking`。詳細は末尾「完了済み」）
-3. **T3: ペルソナスキーマの実証改善**（中）— 次の最優先。T1 の尖った評価（参照付き Judge）で A/B 検証しながら進める
+3. **T3: ペルソナスキーマの実証改善**（中）— 進行中。スキーマ拡張（PR 1: `identity.point_in_time` / `user_role` / `relationships`、編集 UI、サンプルペルソナ・README 反映）完了。次は T1 の尖った評価（参照付き Judge）で A/B 検証
 
 タスクの詳細・チェックボックスは Issue #34 を参照し、完了したら Issue 側のチェックを更新すること。
 
@@ -77,6 +77,13 @@
 
 ## 完了済み（直近）
 
+- 2026-07-04: **Issue #34 T3「ペルソナスキーマ拡張 PR 1」実装完了**（ブランチ `feat/persona-schema-extension`）
+  - `lib/types.ts` の `Persona` に `identity.point_in_time?: string` / `user_role?: string` / `relationships?: { name, address_as, attitude }[]` を追加。いずれも optional で **後方互換**（既存ペルソナ・DB データは無変更で動作）
+  - `lib/prompt.ts` の `buildSystemPrompt` に3フィールドを静的領域へ描画する処理を追加（値がある場合のみ）。口調変換用の `buildConvertSystemPrompt` は対象外のため**非変更**
+  - `components/PersonaEditor.tsx` に「人間関係」「時点」「悪い応答例（anti_examples）」の編集フォームを追加（フォーム / JSON 両モードで入力・保存可能）
+  - サンプルペルソナ（`personas/mira.yaml` / `personas/tetsu-oyaji.yaml`）に新フィールドの実例値を追加し、README（YAML 例・生成 AI プロンプト例）にも反映。サンプルには `anti_examples` の値は追加しない（グローバル制約）
+  - `npx next build` 成功を確認（dev サーバー停止済みで実行、確認後 `.next` 削除）
+  - **申し送り（PR 3 の A/B 実証に着手する前に必ず対応）**: `scripts/eval/judge.ts` の `summarizePersona()` は Judge に渡すペルソナ要約を独自組立しており、新3フィールド（および既存の `background` / `anti_examples`）を含まない。このままだと Judge が「ユーザーが誰か・関係性・時点」を知らずに採点するため、新フィールドの A/B 検証でスコア感度が出ない恐れがある（最終レビュー Important 指摘）
 - 2026-07-04: **Issue #42「共有シークレット認証」実装完了**（ブランチ `feat/auth-shared-secret`）
   - **仕組み**: 単一の合言葉（`AUTH_SECRET`）による簡易認証。`lib/auth.ts`（`sha256Hex` / `timingSafeEqualStr`。Edge ランタイムの middleware から使うため Web Crypto を使用）、`middleware.ts`（`/login`・`/api/auth/login` 以外の全パスを Cookie（`auth_token`、SHA-256 ハッシュ値、30日有効）でガード）、`POST /api/auth/login`（正しい合言葉で 200 + `Set-Cookie`、本番のみ `Secure` 付与、失敗時 500ms 遅延）、`app/login/page.tsx` の4点構成
   - **フェイルクローズ**: 本番（`NODE_ENV=production`）で `AUTH_SECRET` 未設定の場合、middleware・login route とも全リクエストを `503`（JSON エラー）で遮断する。ローカル開発では未設定なら認証なしで従来どおり動く（後方互換）

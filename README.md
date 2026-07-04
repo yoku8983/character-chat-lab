@@ -138,6 +138,7 @@ identity:
     性格の詳細記述
   background: |
     キャラクターの来歴
+  point_in_time: "物語上のどの時点か"  # 任意: 時系列混在によるハルシネーション防止
   speaking_style:
     first_person: "俺"           # 一人称
     tone: "casual"               # トーン
@@ -159,6 +160,15 @@ memory:
 behavior:
   constraints:
     - "行動制約"
+
+# 任意: ユーザーはキャラにとって誰か（会話相手の既定値）
+user_role: "プロデューサー"
+
+# 任意: 主要人物への呼び方・態度
+relationships:
+  - name: "相手の名前"
+    address_as: "呼び方"
+    attitude: "態度・距離感"
 
 examples:
   - user: "こんにちは"
@@ -201,6 +211,8 @@ Claude や ChatGPT などの生成AIチャットにキャラクター情報の�
 - 専門知識・得意分野
 - 行動原則や守るべきルール
 - 実際の台詞に近い会話例（3〜5組）
+- 主要な登場人物への呼び方・態度（relationships）
+- 物語上のどの時点のキャラかの明示（point_in_time）と、ユーザーは誰として会話するか（user_role）
 
 ## 出力フォーマット（JSON）
 
@@ -209,6 +221,7 @@ Claude や ChatGPT などの生成AIチャットにキャラクター情報の�
   "identity": {
     "personality": "性格を2〜3文で",
     "background": "経歴・背景を3〜5文で",
+    "point_in_time": "物語上のどの時点のキャラか（1文。例: ○○編終了直後）",
     "speaking_style": {
       "first_person": "一人称",
       "tone": "口調を英語ハイフン区切りで（例: calm-intellectual）",
@@ -236,6 +249,14 @@ Claude や ChatGPT などの生成AIチャットにキャラクター情報の�
       "キャラが絶対にしないこと、守るルール（3〜5個）"
     ]
   },
+  "user_role": "ユーザーはキャラにとって誰か（例: 部下、ファン、初対面の客）",
+  "relationships": [
+    {
+      "name": "主要人物の名前",
+      "address_as": "その人物への呼び方",
+      "attitude": "その人物への態度・距離感（1文）"
+    }
+  ],
   "examples": [
     {
       "user": "ユーザーの質問や発言",
