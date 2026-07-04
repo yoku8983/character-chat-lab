@@ -47,18 +47,40 @@ export async function POST(request: Request) {
     return new Response(null, { status: 404 });
   }
 
-  const content = fs.readFileSync(filePath, "utf-8");
-  const report = JSON.parse(content) as EvalReport;
+  let report: EvalReport;
+  try {
+    const content = fs.readFileSync(filePath, "utf-8");
+    report = JSON.parse(content) as EvalReport;
+  } catch {
+    return Response.json(
+      { error: "このレポートはベースラインに使えません（形式が古い可能性があります）" },
+      { status: 400 }
+    );
+  }
+
+  const judge = (report as EvalReport | null)?.aggregate?.judge;
+  const drift = (report as EvalReport | null)?.aggregate?.drift;
+  const late = drift?.late;
 
   if (
     typeof report !== "object" ||
     report === null ||
     typeof report.aggregate !== "object" ||
     report.aggregate === null ||
-    typeof report.aggregate.judge !== "object" ||
-    report.aggregate.judge === null ||
-    typeof report.aggregate.drift !== "object" ||
-    report.aggregate.drift === null
+    typeof judge !== "object" ||
+    judge === null ||
+    typeof judge.toneConsistency !== "number" ||
+    typeof judge.knowledgeUse !== "number" ||
+    typeof judge.personaMaintenance !== "number" ||
+    typeof judge.naturalness !== "number" ||
+    typeof drift !== "object" ||
+    drift === null ||
+    typeof late !== "object" ||
+    late === null ||
+    typeof late.firstPerson !== "number" ||
+    typeof late.sentenceEnding !== "number" ||
+    !Array.isArray(report.scenarios) ||
+    report.scenarios.length === 0
   ) {
     return Response.json(
       { error: "このレポートはベースラインに使えません（形式が古い可能性があります）" },

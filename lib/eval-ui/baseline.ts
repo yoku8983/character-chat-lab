@@ -20,7 +20,16 @@ function average(values: number[]): number {
   return values.reduce((sum, v) => sum + v, 0) / values.length;
 }
 
-function toBaselineListItem(report: EvalReport): BaselineListItem {
+function toBaselineListItem(report: EvalReport): BaselineListItem | null {
+  if (!Array.isArray(report.scenarios) || report.scenarios.length === 0) {
+    return null;
+  }
+
+  const turnsValues = report.scenarios.map((s) => s.turns);
+  if (turnsValues.some((t) => typeof t !== "number" || Number.isNaN(t))) {
+    return null;
+  }
+
   const judge = report.aggregate.judge;
   const judgeAvg = average([
     judge.toneConsistency,
@@ -34,7 +43,7 @@ function toBaselineListItem(report: EvalReport): BaselineListItem {
     createdAt: report.meta.createdAt,
     model: report.meta.model,
     scenariosCount: report.scenarios.length,
-    maxTurns: Math.max(...report.scenarios.map((s) => s.turns)),
+    maxTurns: Math.max(...turnsValues),
     judgeAvg,
     referenceFidelity: report.aggregate.referenceFidelity ?? null,
     datasetPath: report.meta.dataset?.path ?? null,
@@ -77,7 +86,10 @@ export function listBaselines(): BaselineListItem[] {
     try {
       const content = fs.readFileSync(path.join(BASELINES_DIR, filename), "utf-8");
       const data = JSON.parse(content) as EvalReport;
-      items.push(toBaselineListItem(data));
+      const item = toBaselineListItem(data);
+      if (item !== null) {
+        items.push(item);
+      }
     } catch {
       // パース不能ファイルはスキップ
     }
