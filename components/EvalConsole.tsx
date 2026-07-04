@@ -16,6 +16,22 @@ interface EvalJobParams {
   temperature: number | null;
   scenariosCount: number | null;
   maxTurns: number | null;
+  check?: boolean;
+}
+
+interface RegressionFinding {
+  metric: string;
+  kind: "judge" | "marker";
+  baseline: number;
+  current: number;
+  delta: number;
+  failed: boolean;
+}
+
+interface RegressionResult {
+  pass: boolean;
+  findings: RegressionFinding[];
+  skipped: string[];
 }
 
 interface EvalJobState {
@@ -28,6 +44,18 @@ interface EvalJobState {
   finishedAt: string | null;
   error: string | null;
   reportPath: string | null;
+  regression: RegressionResult | null;
+}
+
+interface BaselineItem {
+  personaId: string;
+  createdAt: string;
+  model: string;
+  scenariosCount: number;
+  maxTurns: number;
+  judgeAvg: number;
+  referenceFidelity: number | null;
+  datasetPath: string | null;
 }
 
 interface ReportListItem {
@@ -159,6 +187,12 @@ export default function EvalConsole({ personas }: EvalConsoleProps) {
   const [job, setJob] = useState<EvalJobState | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // ベースライン・回帰チェック
+  const [baselines, setBaselines] = useState<BaselineItem[]>([]);
+  const [baselineError, setBaselineError] = useState<string | null>(null);
+  const [checkPersonaFile, setCheckPersonaFile] = useState("");
+  const [checkError, setCheckError] = useState<string | null>(null);
+
   // 履歴
   const [reports, setReports] = useState<ReportListItem[]>([]);
   const [reportsLoading, setReportsLoading] = useState(true);
@@ -182,6 +216,18 @@ export default function EvalConsole({ personas }: EvalConsoleProps) {
     }
   }, []);
 
+  const fetchBaselines = useCallback(async () => {
+    try {
+      const res = await fetch("/api/eval/baseline");
+      if (res.ok) {
+        const data: BaselineItem[] = await res.json();
+        setBaselines(data);
+      }
+    } catch {
+      // 一覧取得の失敗は致命的ではないため無視する
+    }
+  }, []);
+
   const fetchStatus = useCallback(async () => {
     const res = await fetch("/api/eval/status");
     if (!res.ok) return;
@@ -195,13 +241,15 @@ export default function EvalConsole({ personas }: EvalConsoleProps) {
       if (data !== null) {
         // 完了・失敗・中断のいずれでも履歴を再取得
         void fetchReports();
+        void fetchBaselines();
       }
     }
-  }, [fetchReports]);
+  }, [fetchReports, fetchBaselines]);
 
   useEffect(() => {
     void fetchReports();
     void fetchStatus();
+    void fetchBaselines();
     return () => {
       if (pollRef.current) {
         clearInterval(pollRef.current);
@@ -287,6 +335,52 @@ export default function EvalConsole({ personas }: EvalConsoleProps) {
     void fetchStatus();
   }
 
+  async function handleRegressionCheck(personaId: string) {
+    setCheckError(null);
+    try {
+      const res = await fetch("/api/eval/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          personaId,
+          personaFile: checkPersonaFile.trim() || undefined,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status !== 202) {
+        setCheckError(data.error ?? `回帰チェックの開始に失敗しました（status ${res.status}）`);
+        return;
+      }
+      await fetchStatus();
+      startPolling();
+    } catch (err) {
+      setCheckError(err instanceof Error ? err.message : "回帰チェックの開始に失敗しました");
+    }
+  }
+
+  async function handleSetBaseline(filename: string, persona: string) {
+    setBaselineError(null);
+    const existing = baselines.find((b) => b.personaId === persona);
+    if (existing && !window.confirm(`${persona} のベースラインを上書きします。よろしいですか？`)) {
+      return;
+    }
+    try {
+      const res = await fetch("/api/eval/baseline", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setBaselineError(data.error ?? `ベースライン設定に失敗しました（status ${res.status}）`);
+        return;
+      }
+      void fetchBaselines();
+    } catch (err) {
+      setBaselineError(err instanceof Error ? err.message : "ベースライン設定に失敗しました");
+    }
+  }
+
   async function handleRowClick(filename: string) {
     if (expandedFilename === filename) {
       expandedRequestRef.current = null;
@@ -324,6 +418,83 @@ export default function EvalConsole({ personas }: EvalConsoleProps) {
 
   return (
     <div className="space-y-8">
+      {/* 回帰チェック */}
+      <section className="rounded-xl p-4 md:p-6" style={sectionStyle}>
+        <h2 className="text-base md:text-lg font-semibold mb-1" style={{ color: "var(--text-primary)" }}>
+          回帰チェック
+        </h2>
+        <p className="text-xs mb-4" style={{ color: "var(--text-secondary)" }}>
+          ベースラインと同じ構成で評価を再実行し、品質が落ちていないか判定します。
+        </p>
+        {baselines.length === 0 ? (
+          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+            まだベースラインがありません。下のフォームで評価を実行し、実行履歴の行から「ベースラインに設定」を押してください。
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                  <th className="text-left py-2 pr-4" style={{ color: "var(--text-secondary)" }}>ペルソナ</th>
+                  <th className="text-left py-2 px-4" style={{ color: "var(--text-secondary)" }}>取得日時</th>
+                  <th className="text-left py-2 px-4" style={{ color: "var(--text-secondary)" }}>モデル</th>
+                  <th className="text-left py-2 px-4" style={{ color: "var(--text-secondary)" }}>構成</th>
+                  <th className="text-right py-2 px-4" style={{ color: "var(--text-secondary)" }}>judge平均</th>
+                  <th className="text-right py-2 px-4" style={{ color: "var(--text-secondary)" }}>推定API呼び出し</th>
+                  <th className="text-right py-2 pl-4" style={{ color: "var(--text-secondary)" }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {baselines.map((b) => (
+                  <tr key={b.personaId} style={{ borderBottom: "1px solid var(--border)" }}>
+                    <td className="py-2 pr-4" style={{ color: "var(--text-primary)" }}>{b.personaId}</td>
+                    <td className="py-2 px-4" style={{ color: "var(--text-primary)" }}>{formatDateTime(b.createdAt)}</td>
+                    <td className="py-2 px-4" style={{ color: "var(--text-primary)" }}>{b.model}</td>
+                    <td className="py-2 px-4" style={{ color: "var(--text-primary)" }}>
+                      シナリオ{b.scenariosCount}×{b.maxTurns}ターン
+                    </td>
+                    <td className="text-right py-2 px-4" style={{ color: "var(--text-primary)" }}>{b.judgeAvg.toFixed(2)}</td>
+                    <td className="text-right py-2 px-4" style={{ color: "var(--text-primary)" }}>
+                      約 {b.scenariosCount * b.maxTurns + b.scenariosCount} 回
+                    </td>
+                    <td className="text-right py-2 pl-4">
+                      <button
+                        type="button"
+                        disabled={isRunning}
+                        onClick={() => void handleRegressionCheck(b.personaId)}
+                        className="rounded-md px-3 py-1.5 text-sm font-semibold disabled:opacity-50"
+                        style={{ backgroundColor: "var(--accent)", color: "var(--bg-primary)" }}
+                      >
+                        回帰チェック実行
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div className="mt-4">
+          <p className="text-xs mb-1" style={{ color: "var(--text-secondary)" }}>
+            ファイルベースのペルソナの場合のみ: ペルソナ JSON パス
+          </p>
+          <input
+            type="text"
+            className="w-full md:w-96 rounded-md p-2 text-sm"
+            style={{ backgroundColor: "var(--bg-primary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+            placeholder="personas/tetsu-oyaji.yaml"
+            value={checkPersonaFile}
+            onChange={(e) => setCheckPersonaFile(e.target.value)}
+            disabled={isRunning}
+          />
+        </div>
+        {checkError && (
+          <p className="text-sm mt-2" style={{ color: "#e05252" }}>
+            {checkError}
+          </p>
+        )}
+      </section>
+
       {/* 実行フォーム */}
       <section className="rounded-xl p-4 md:p-6" style={sectionStyle}>
         <h2 className="text-base md:text-lg font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
@@ -568,6 +739,61 @@ export default function EvalConsole({ personas }: EvalConsoleProps) {
               </p>
             )}
 
+            {job.params.check && job.status !== "running" && (
+              <div className="mt-2">
+                {job.regression ? (
+                  <div className="space-y-2">
+                    <span
+                      className="inline-block rounded-md px-2 py-1 text-xs font-semibold"
+                      style={{
+                        backgroundColor: job.regression.pass ? "#4caf50" : "#e05252",
+                        color: "var(--bg-primary)",
+                      }}
+                    >
+                      {job.regression.pass ? "PASS" : "FAIL"}
+                    </span>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                            <th className="text-left py-1 pr-4" style={{ color: "var(--text-secondary)" }}>観点</th>
+                            <th className="text-right py-1 px-4" style={{ color: "var(--text-secondary)" }}>基準値</th>
+                            <th className="text-right py-1 px-4" style={{ color: "var(--text-secondary)" }}>今回値</th>
+                            <th className="text-right py-1 px-4" style={{ color: "var(--text-secondary)" }}>差分</th>
+                            <th className="text-right py-1 pl-4" style={{ color: "var(--text-secondary)" }}>判定</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {job.regression.findings.map((f) => {
+                            const format = (v: number) => (f.kind === "judge" ? v.toFixed(2) : `${(v * 100).toFixed(0)}%`);
+                            const color = f.failed ? "#e05252" : "var(--text-primary)";
+                            return (
+                              <tr key={f.metric} style={{ borderBottom: "1px solid var(--border)" }}>
+                                <td className="py-1 pr-4" style={{ color }}>{f.metric}</td>
+                                <td className="text-right py-1 px-4" style={{ color }}>{format(f.baseline)}</td>
+                                <td className="text-right py-1 px-4" style={{ color }}>{format(f.current)}</td>
+                                <td className="text-right py-1 px-4" style={{ color }}>{format(f.delta)}</td>
+                                <td className="text-right py-1 pl-4" style={{ color }}>{f.failed ? "FAIL" : "OK"}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    {job.regression.skipped.length > 0 && (
+                      <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                        判定をスキップした観点: {job.regression.skipped.join(" / ")}
+                      </p>
+                    )}
+                  </div>
+                ) : job.status === "cancelled" ? (
+                  <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                    中断されたため判定していません
+                  </p>
+                ) : null}
+              </div>
+            )}
+
             {job.status === "running" && (
               <button
                 type="button"
@@ -587,6 +813,11 @@ export default function EvalConsole({ personas }: EvalConsoleProps) {
         <h2 className="text-base md:text-lg font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
           実行履歴
         </h2>
+        {baselineError && (
+          <p className="text-sm mb-2" style={{ color: "#e05252" }}>
+            {baselineError}
+          </p>
+        )}
         {reportsLoading ? (
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>読み込み中...</p>
         ) : reports.length === 0 ? (
@@ -602,7 +833,8 @@ export default function EvalConsole({ personas }: EvalConsoleProps) {
                   <th className="text-left py-2 px-4" style={{ color: "var(--text-secondary)" }}>モデル</th>
                   <th className="text-right py-2 px-4" style={{ color: "var(--text-secondary)" }}>judge平均/正答率</th>
                   <th className="text-right py-2 px-4" style={{ color: "var(--text-secondary)" }}>refFidelity</th>
-                  <th className="text-right py-2 pl-4" style={{ color: "var(--text-secondary)" }}>コスト</th>
+                  <th className="text-right py-2 px-4" style={{ color: "var(--text-secondary)" }}>コスト</th>
+                  <th className="text-right py-2 pl-4" style={{ color: "var(--text-secondary)" }}>操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -629,13 +861,28 @@ export default function EvalConsole({ personas }: EvalConsoleProps) {
                       <td className="text-right py-2 px-4" style={{ color: "var(--text-primary)" }}>
                         {r.referenceFidelity !== null ? r.referenceFidelity.toFixed(2) : "-"}
                       </td>
-                      <td className="text-right py-2 pl-4" style={{ color: "var(--text-primary)" }}>
+                      <td className="text-right py-2 px-4" style={{ color: "var(--text-primary)" }}>
                         {formatUsd(r.totalCostUsd)}
+                      </td>
+                      <td className="text-right py-2 pl-4">
+                        {r.kind === "eval" && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleSetBaseline(r.filename, r.persona);
+                            }}
+                            className="rounded-md px-2 py-1 text-xs font-semibold"
+                            style={{ backgroundColor: "var(--bg-primary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+                          >
+                            ベースラインに設定
+                          </button>
+                        )}
                       </td>
                     </tr>
                     {expandedFilename === r.filename && (
                       <tr key={`${r.filename}-detail`}>
-                        <td colSpan={7} className="py-4 px-2">
+                        <td colSpan={8} className="py-4 px-2">
                           {expandedError && (
                             <p className="text-sm" style={{ color: "#e05252" }}>
                               {expandedError}
