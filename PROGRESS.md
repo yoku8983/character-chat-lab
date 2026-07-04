@@ -77,6 +77,12 @@
 
 ## 完了済み（直近）
 
+- 2026-07-04: **Issue #34 T1 残タスク着手: 正解データセット v1 の設計確定 + `persona:push` 実装**（ブランチ `feat/persona-push`）
+  - 設計書: `docs/superpowers/specs/2026-07-04-ground-truth-dataset-v1-design.md`（ユーザー承認済み）。決定事項: パイロットキャラのペルソナは対象作品の時点に統一（`point_in_time` 活用）/ 実キャラ JSON は `personas/private/`（gitignore 新設）に置き `persona:push` で DB 反映 / v1 規模は正解ペア 50 件（canon:false 約 18 件）+ クイズ 10 問
+  - `scripts/persona-push.ts` 新設（`npm run persona:push -- --file <path> [--yes]`）: JSON/YAML 両対応（yaml.load）、`lib/db-personas` の upsert 再利用（UPDATE は name/definition のみ＝profile_image 保持）、リモート DB（`file:` 以外）は `--yes` 必須の誤爆ガード。一時 DB で INSERT / UPDATE / ガード / 形式検証エラーを実測確認、`npx tsc --noEmit` パス
+  - `scripts/eval/env.ts` の `loadEnv` から「OPENROUTER_API_KEY があれば何もしない」早期 return を除去（LIBSQL_URL 等も読めるように。既存環境変数優先は不変のため eval への回帰なし）
+  - **横展開整備（プレイブック + プロンプトテンプレート + `dataset:lint`）は PR② としてパイロット完了後に実施**。ユーザーが外部 AI チャットで先行研究（ロールプレイ評価・対話ペア抽出自動化等）を調査中であり、結果受領後にプレイブックへ反映する（受領まで執筆は確定させない）
+
 - 2026-07-04: **Issue #34 T3「ペルソナスキーマ拡張 PR 1」実装完了**（ブランチ `feat/persona-schema-extension`）
   - `lib/types.ts` の `Persona` に `identity.point_in_time?: string` / `user_role?: string` / `relationships?: { name, address_as, attitude }[]` を追加。いずれも optional で **後方互換**（既存ペルソナ・DB データは無変更で動作）
   - `lib/prompt.ts` の `buildSystemPrompt` に3フィールドを静的領域へ描画する処理を追加（値がある場合のみ）。口調変換用の `buildConvertSystemPrompt` は対象外のため**非変更**

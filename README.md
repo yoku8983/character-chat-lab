@@ -271,6 +271,23 @@ Claude や ChatGPT などの生成AIチャットにキャラクター情報の�
 - 語尾・口癖・一人称は原作や公式資料に忠実に
 ```
 
+### 非公開ペルソナの運用（persona:push）
+
+実在作品のキャラクターなど、リポジトリにコミットできないペルソナ定義は `personas/private/`（gitignore 済み）に JSON / YAML で置き、`persona:push` スクリプトで DB へ直接反映します。`personas/*.yaml` の自動シードとは異なり、本番コンテナにファイルを含めずに DB だけへ届けられます。
+
+```bash
+# ローカル DB（data/chat-lab.db。.env.local の LIBSQL_URL があればそちら）へ upsert
+npm run persona:push -- --file personas/private/<id>.json
+
+# 本番 Turso へ upsert（リモート接続は --yes 必須。誤爆防止）
+LIBSQL_URL=libsql://<db>.turso.io LIBSQL_AUTH_TOKEN=<token> \
+  npm run persona:push -- --file personas/private/<id>.json --yes
+```
+
+- 既存 id があれば UPDATE（UI で設定したプロフィール画像は保持）、無ければ INSERT
+- `id` / `name` / `identity.speaking_style` / `examples` の形式検証あり
+- **注意**: `personas/private/` 配下のファイルと、原作台詞を含む正解データセット（`scripts/eval/datasets/`）は絶対にコミットしないこと（`.gitignore` で隔離済み）
+
 ## 使用可能モデル (OpenRouter経由)
 
 | モデル | 用途 | Input $/M | Output $/M |
