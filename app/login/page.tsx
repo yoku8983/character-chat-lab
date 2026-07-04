@@ -5,9 +5,8 @@ import { FormEvent, Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 // オープンリダイレクト防止: 同一オリジンに解決される "/" 始まりの相対パスのみ許可。
-// ブラックリストではなく「ダミーオリジンで URL 解釈してもオリジンが変わらないこと」で
-// 判定するため、バックスラッシュ・タブ・改行など URL 解析時の等価変換に対しても安全。
-// 返り値はパース後に正規化された pathname + search。
+// ダミーオリジンで URL 解釈してオリジンが変わらないことを確認し、さらに正規化後の
+// pathname が "//"(プロトコル相対URL)で始まらないことも検証する。返り値は正規化済み。
 function safeFrom(from: string | null): string {
   if (!from || !from.startsWith("/") || from.startsWith("//")) {
     return "/";
@@ -15,7 +14,7 @@ function safeFrom(from: string | null): string {
   try {
     const base = "http://internal.invalid";
     const url = new URL(from, base);
-    if (url.origin === base) {
+    if (url.origin === base && !url.pathname.startsWith("//")) {
       return url.pathname + url.search;
     }
   } catch {
