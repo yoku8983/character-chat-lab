@@ -142,6 +142,20 @@ Judge は既存4観点に加えて第5観点 `referenceFidelity`（参照忠実�
 データセットの `personaId` と評価対象ペルソナの `id` が食い違う場合、`run.ts` / `sweep.ts` は
 警告を出しますが実行は中断しません（本番キャラは `--persona-file` 運用で `id` が揺れうるため）。
 
+#### データセット lint（形式検証 + 品質ルール）
+
+```bash
+npm run dataset:lint -- scripts/eval/datasets/<キャラid>.json
+```
+
+`loadDataset` による形式検証（違反は ERROR で exit 1）に加え、品質ルールからの逸脱を
+WARN / INFO で表示します（表示のみ。exit 0 のまま）。検査項目: ペア数（20 件未満 WARN /
+50 件未満 INFO）、canon:false 比率（3〜4 割推奨）、situation / reference の重複、
+situation の極端な短さ、canon:false ペアの reference の極端な短さ（canon:true の短い
+名返答は正当なので検査しない）、捏造検出型クイズの最低数（2 問）。
+
+推奨値の根拠とデータセット作成の方法論は `docs/persona-playbook.md` を参照してください。
+
 ### 知識クイズ評価（ハルシネーション検出の自動化）
 
 キャラクター固有知識の正誤・捏造（ハルシネーション）を、multi-turn の口調評価とは別に単発 QA で

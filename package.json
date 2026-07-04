@@ -11,6 +11,7 @@
     "eval:compare": "tsx scripts/eval/compare.ts",
     "eval:sweep": "tsx scripts/eval/sweep.ts",
     "eval:quiz": "tsx scripts/eval/quiz.ts",
+    "dataset:lint": "tsx scripts/eval/dataset-lint.ts",
     "persona:push": "tsx scripts/persona-push.ts"
   },
   "dependencies": {

@@ -310,11 +310,18 @@ npm run eval:sweep -- --persona <id>
 
 # 2 つのレポート JSON の品質・コスト差分を表示
 npm run eval:compare -- <report-a.json> <report-b.json>
+
+# 知識クイズ評価（ハルシネーション検出）
+npm run eval:quiz -- --persona <id> --dataset scripts/eval/datasets/<id>.json
+
+# 正解データセットの形式検証 + 品質ルールチェック
+npm run dataset:lint -- scripts/eval/datasets/<id>.json
 ```
 
 - 口調ドリフト: 一人称・語尾・口癖のマーカーを会話の前半／後半で比較
-- LLM-as-Judge: 被評価モデルと別系統のモデルで tone / knowledge / persona / naturalness を採点
+- LLM-as-Judge: 被評価モデルと別系統のモデルで tone / knowledge / persona / naturalness を採点（`--dataset` 指定時は referenceFidelity を追加した5観点）
 - 実測コストはレポートに記録され、`/usage` ページでも集計を確認できます
+- ペルソナ・正解データセットの作成方法論は [ペルソナ・プレイブック](docs/persona-playbook.md) を参照
 
 ### 評価コンソール（ローカル専用）
 
@@ -401,6 +408,7 @@ http://localhost:3000/eval を開くと、多ターン評価・知識クイズ�
 - [MVP1 仕様書](docs/mvp1-spec.md) — MVP1 機能・アクセプタンス基準
 - [MVP2 仕様書](docs/mvp2-spec.md) — MVP2 機能・アクセプタンス基準
 - [Issue #20 仕様書](docs/issue20-improvements-spec.md) — コンテキスト戦略・コスト最適化（usage 計測・履歴上限・評価基盤・キャッシュ最適化）
+- [ペルソナ・プレイブック](docs/persona-playbook.md) — 実在キャラのペルソナ・正解データセット作成の方法論（時点決定・監修原則・プロンプトテンプレート・lint）
 - [ロードマップ](docs/roadmap.md) — 拡張計画
 - [Azure デプロイガイド](docs/azure-deployment.md) — Azure Container Apps + Turso セットアップ手順
 - [ホスティング・コスト分析](docs/hosting-cost-analysis.md) — AWS / Azure 構成比較・コスト試算
