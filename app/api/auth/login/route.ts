@@ -33,12 +33,12 @@ export async function POST(request: NextRequest) {
     password = undefined;
   }
   if (typeof password !== "string" || password.length === 0) {
-    return Response.json({ error: "合言葉を入力してください" }, { status: 400 });
+    return Response.json({ error: "パスワードを入力してください" }, { status: 400 });
   }
 
   if (!timingSafeEqualStr(password, secret)) {
     await new Promise((resolve) => setTimeout(resolve, FAIL_DELAY_MS));
-    return Response.json({ error: "合言葉が違います" }, { status: 401 });
+    return Response.json({ error: "パスワードが違います" }, { status: 401 });
   }
 
   const token = await sha256Hex(secret);
