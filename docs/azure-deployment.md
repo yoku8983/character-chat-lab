@@ -65,7 +65,8 @@ az containerapp create \
   --env-vars \
     OPENROUTER_API_KEY=secretref:openrouter-api-key \
     LIBSQL_URL=secretref:libsql-url \
-    LIBSQL_AUTH_TOKEN=secretref:libsql-auth-token
+    LIBSQL_AUTH_TOKEN=secretref:libsql-auth-token \
+    AUTH_SECRET=secretref:auth-secret
 ```
 
 ### シークレットの登録
@@ -77,8 +78,11 @@ az containerapp secret set \
   --secrets \
     openrouter-api-key="your-openrouter-api-key" \
     libsql-url="libsql://character-chat-lab-xxxxx.turso.io" \
-    libsql-auth-token="your-turso-auth-token"
+    libsql-auth-token="your-turso-auth-token" \
+    auth-secret="your-auth-secret"
 ```
+
+> **`AUTH_SECRET` は本番では必須です。** 設定を忘れたままデプロイすると、アプリはフェイルクローズ仕様により全リクエストを `503` で遮断します（認証なしで公開してしまうよりも安全側に倒す設計のため、意図的な挙動です）。値は `openssl rand -base64 32` などで生成したランダム文字列を使ってください。
 
 ## 3. GHCR アクセス設定（本プロジェクトは Public 運用）
 
