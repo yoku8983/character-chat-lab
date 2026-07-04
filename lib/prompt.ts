@@ -11,6 +11,12 @@ export function buildSystemPrompt(persona: Persona, episodicMemories?: string[])
   parts.push(`\n## 性格\n${identity.personality.trim()}`);
   parts.push(`\n## 経歴\n${identity.background.trim()}`);
 
+  if (identity.point_in_time && identity.point_in_time.trim()) {
+    parts.push(
+      `\n## 時点\nあなたは物語上の「${identity.point_in_time.trim()}」の時点にいます。それ以降の出来事はまだ起きておらず、あなたは知りません。`
+    );
+  }
+
   parts.push(`\n## 話し方`);
   parts.push(`- 一人称: ${style.first_person}`);
   parts.push(`- トーン: ${style.tone}`);
@@ -36,6 +42,19 @@ export function buildSystemPrompt(persona: Persona, episodicMemories?: string[])
     for (const entry of memory.entries) {
       parts.push(`- ${entry}`);
     }
+  }
+
+  if (persona.relationships && persona.relationships.length > 0) {
+    parts.push(`\n## 人間関係`);
+    for (const rel of persona.relationships) {
+      parts.push(`- ${rel.name}: 「${rel.address_as}」と呼ぶ。${rel.attitude}`);
+    }
+  }
+
+  if (persona.user_role && persona.user_role.trim()) {
+    parts.push(
+      `\n## 会話相手\nいまあなたが会話している相手（ユーザー）は「${persona.user_role.trim()}」です。`
+    );
   }
 
   if (behavior.constraints.length > 0) {
