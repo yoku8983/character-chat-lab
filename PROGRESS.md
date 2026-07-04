@@ -83,6 +83,7 @@
   - `components/PersonaEditor.tsx` に「人間関係」「時点」「悪い応答例（anti_examples）」の編集フォームを追加（フォーム / JSON 両モードで入力・保存可能）
   - サンプルペルソナ（`personas/mira.yaml` / `personas/tetsu-oyaji.yaml`）に新フィールドの実例値を追加し、README（YAML 例・生成 AI プロンプト例）にも反映。サンプルには `anti_examples` の値は追加しない（グローバル制約）
   - `npx next build` 成功を確認（dev サーバー停止済みで実行、確認後 `.next` 削除）
+  - **申し送り（PR 3 の A/B 実証に着手する前に必ず対応）**: `scripts/eval/judge.ts` の `summarizePersona()` は Judge に渡すペルソナ要約を独自組立しており、新3フィールド（および既存の `background` / `anti_examples`）を含まない。このままだと Judge が「ユーザーが誰か・関係性・時点」を知らずに採点するため、新フィールドの A/B 検証でスコア感度が出ない恐れがある（最終レビュー Important 指摘）
 - 2026-07-04: **Issue #42「共有シークレット認証」実装完了**（ブランチ `feat/auth-shared-secret`）
   - **仕組み**: 単一の合言葉（`AUTH_SECRET`）による簡易認証。`lib/auth.ts`（`sha256Hex` / `timingSafeEqualStr`。Edge ランタイムの middleware から使うため Web Crypto を使用）、`middleware.ts`（`/login`・`/api/auth/login` 以外の全パスを Cookie（`auth_token`、SHA-256 ハッシュ値、30日有効）でガード）、`POST /api/auth/login`（正しい合言葉で 200 + `Set-Cookie`、本番のみ `Secure` 付与、失敗時 500ms 遅延）、`app/login/page.tsx` の4点構成
   - **フェイルクローズ**: 本番（`NODE_ENV=production`）で `AUTH_SECRET` 未設定の場合、middleware・login route とも全リクエストを `503`（JSON エラー）で遮断する。ローカル開発では未設定なら認証なしで従来どおり動く（後方互換）
