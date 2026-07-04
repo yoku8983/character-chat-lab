@@ -65,14 +65,14 @@ function LoginForm() {
         style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border)" }}
       >
         <h1 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
-          合言葉を入力してください
+          パスワードを入力してください
         </h1>
         <input
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           autoFocus
-          placeholder="合言葉"
+          placeholder="パスワード"
           className="w-full rounded px-3 py-2 text-sm outline-none"
           style={{
             backgroundColor: "var(--bg-primary)",
