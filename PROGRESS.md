@@ -72,11 +72,18 @@
   - 両方ともブランチ `feat/eval-gui-usage-dashboard` にコミット済み
   - **PR①（`feat/usage-dashboard`、Task 1〜4）**: usage 集計拡張（JST 基準の byDay/byMonth・today/thisMonth）・円換算ヘルパ・usage ページ改修・ドキュメント更新まで実装完了。日別/月別/今日/今月の集計境界を UTC→JST 基準に変える判断（Task 1）は**ユーザー承認済み**。次は PR 作成（`npx tsc --noEmit` 最終確認後）
   - **PR②（`feat/eval-gui`、Task 5〜10・評価 GUI）**: 実装完了・PR 作成待ち（詳細は末尾「完了済み」）
-- 関連の合意事項（このセッションでの議論・未着手）: 実キャラ運用は「ローカル私設リポジトリ（personas + datasets 並置）を master とし、本番 Turso へはペルソナ JSON のみ push」方針で合意。`persona:pull` / `persona:push` スクリプトは未実装（Issue 未起票）。また**本番全 API が無認証**である問題を調査で確認済み（別 Issue 起票推奨・未起票）
+- 関連の合意事項（このセッションでの議論・未着手）: 実キャラ運用は「ローカル私設リポジトリ（personas + datasets 並置）を master とし、本番 Turso へはペルソナ JSON のみ push」方針で合意。`persona:pull` / `persona:push` スクリプトは未実装（Issue 未起票）。**「本番全 API が無認証」の問題は Issue #42 として起票済み・共有シークレット認証で対応完了**（詳細は末尾「完了済み」。マージ後は Azure に `AUTH_SECRET` を設定してからデプロイすること）
 - Issue #34 T1 の残り: 本番キャラの正解ペア 20〜50 件 + クイズ設問の作成（開発者監修・リポジトリ外運用。ユーザーと協働）
 
 ## 完了済み（直近）
 
+- 2026-07-04: **Issue #42「共有シークレット認証」実装完了**（ブランチ `feat/auth-shared-secret`）
+  - **仕組み**: 単一の合言葉（`AUTH_SECRET`）による簡易認証。`lib/auth.ts`（`sha256Hex` / `timingSafeEqualStr`。Edge ランタイムの middleware から使うため Web Crypto を使用）、`middleware.ts`（`/login`・`/api/auth/login` 以外の全パスを Cookie（`auth_token`、SHA-256 ハッシュ値、30日有効）でガード）、`POST /api/auth/login`（正しい合言葉で 200 + `Set-Cookie`、本番のみ `Secure` 付与、失敗時 500ms 遅延）、`app/login/page.tsx` の4点構成
+  - **フェイルクローズ**: 本番（`NODE_ENV=production`）で `AUTH_SECRET` 未設定の場合、middleware・login route とも全リクエストを `503`（JSON エラー）で遮断する。ローカル開発では未設定なら認証なしで従来どおり動く（後方互換）
+  - **ドキュメント**: `.env.example` に `AUTH_SECRET`（生成例 `openssl rand -base64 32`）追記、`README.md` に「認証」節（仕組み・本番必須・合言葉の決め方・変更時は全ブラウザ再ログイン）を新設、`docs/azure-deployment.md` の Container App 作成・シークレット登録コマンドに `AUTH_SECRET` を追加し本番必須である旨を明記
+  - **本番モード検証（`npx next build` → `next start -p 3100`）**: `AUTH_SECRET` 未設定で起動 → `/`・`/api/personas` とも `503` + JSON エラーを実測確認（フェイルクローズが実際に機能）。`AUTH_SECRET=prod-test-456` で起動 → `/` は `307` で `/login?from=%2F` にリダイレクト、`POST /api/auth/login` の `Set-Cookie` に `Secure` 属性が付与されていることを実測確認。検証後は起動した `next start` を都度 kill、最後に `.next` を削除
+  - **dev 回帰確認**: `AUTH_SECRET` 未設定で `npm run dev` → `/` 200・`/usage` 200・`POST /api/chat` が実際にキャラ応答を返すことを確認（認証追加による既存機能への影響なし）。確認後 dev サーバーは kill 済み
+  - **申し送り**: マージ後、ユーザーが Azure（Container Apps の環境変数/シークレット）に `AUTH_SECRET` を設定してからデプロイする必要がある。設定せずデプロイすると本番は `503` で使えなくなる（フェイルクローズの仕様どおりであり不具合ではない）
 - 2026-07-04: **Issue #34 T2「品質回帰の継続トラッキング」完了**（ブランチ `feat/eval-regression-tracking`、`feat/eval-gui-usage-dashboard` から分岐）
   - `scripts/eval/regression.ts` 新設: 純粋関数 `checkRegression(baseline, current, thresholds)`。Judge 各観点（口調一貫性・知識活用度・人格維持・自然さ・参照忠実度〔両方にある場合のみ〕）は **−0.5 以上**、口調マーカー（一人称・語尾）の late 出現率は **−15pt 以上**の下落で FAIL。**境界値ちょうど（`baseline - current >= threshold`）も FAIL**（ユーザー確定仕様）。CLI (`compare.ts --check`) と GUI (API route) の両方がこの一関数を共有し判定基準のズレを防止
   - CLI: `npm run eval:compare -- <before> <after> --check [--judge-threshold 0.5] [--marker-threshold 15]`。PASS で `exit 0`、FAIL で `exit 1`（CI 等での利用を想定）
