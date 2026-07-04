@@ -371,7 +371,9 @@ git add lib/eval-ui/run-eval-job.ts lib/eval-ui/job-store.ts app/api/eval/run/ro
 git commit -m "feat: 回帰チェックAPI(/api/eval/check)とジョブ実行の共通化"
 ```
 
----### Task 5: GUI — ベースライン設定 + 回帰チェックセクション（`EvalConsole.tsx`）
+---
+
+### Task 5: GUI — ベースライン設定 + 回帰チェックセクション（`EvalConsole.tsx`）
 
 **Files:**
 - Modify: `components/EvalConsole.tsx`
