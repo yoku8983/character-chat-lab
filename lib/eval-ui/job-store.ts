@@ -6,6 +6,8 @@
  * 永続化はしない(意図的な設計。docs 参照)。
  */
 
+import type { RegressionResult } from "@/scripts/eval/regression";
+
 export interface EvalJobParams {
   kind: "eval" | "quiz";
   personaId?: string;
@@ -15,6 +17,7 @@ export interface EvalJobParams {
   temperature: number | null;
   scenariosCount: number | null;
   maxTurns: number | null;
+  check?: boolean;
 }
 
 export interface EvalJobState {
@@ -27,6 +30,7 @@ export interface EvalJobState {
   finishedAt: string | null;
   error: string | null;
   reportPath: string | null;
+  regression: RegressionResult | null;
 }
 
 let currentJob: EvalJobState | null = null;
@@ -51,6 +55,7 @@ export function tryStartJob(params: EvalJobParams): EvalJobState | null {
     finishedAt: null,
     error: null,
     reportPath: null,
+    regression: null,
   };
 
   currentJob = job;
@@ -71,7 +76,12 @@ export function updateProgress(
 
 export function finishJob(
   id: string,
-  result: { status: "done" | "failed" | "cancelled"; error?: string; reportPath?: string }
+  result: {
+    status: "done" | "failed" | "cancelled";
+    error?: string;
+    reportPath?: string;
+    regression?: RegressionResult;
+  }
 ): void {
   if (currentJob === null || currentJob.id !== id) {
     return;
@@ -80,6 +90,9 @@ export function finishJob(
   currentJob.finishedAt = new Date().toISOString();
   currentJob.error = result.error ?? null;
   currentJob.reportPath = result.reportPath ?? null;
+  if (result.regression) {
+    currentJob.regression = result.regression;
+  }
 }
 
 export function requestCancel(): boolean {

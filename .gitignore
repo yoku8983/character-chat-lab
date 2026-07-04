@@ -26,6 +26,9 @@ deploy/
 # eval reports (成果物のため追跡しない)
 eval/reports/
 
+# eval baselines (実キャラのレポートが入るため追跡しない)
+eval/baselines/
+
 # eval 正解データセット（原作台詞を含む実キャラのデータは著作権上コミット禁止。隔離）
 scripts/eval/datasets/*
 !scripts/eval/datasets/README.md
