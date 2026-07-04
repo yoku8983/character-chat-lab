@@ -10,7 +10,8 @@
     "eval": "tsx scripts/eval/run.ts",
     "eval:compare": "tsx scripts/eval/compare.ts",
     "eval:sweep": "tsx scripts/eval/sweep.ts",
-    "eval:quiz": "tsx scripts/eval/quiz.ts"
+    "eval:quiz": "tsx scripts/eval/quiz.ts",
+    "persona:push": "tsx scripts/persona-push.ts"
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",

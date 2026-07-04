@@ -34,6 +34,9 @@ scripts/eval/datasets/*
 !scripts/eval/datasets/README.md
 !scripts/eval/datasets/example-*.json
 
+# 実キャラ（非公開）ペルソナ定義。persona:push でローカル/本番 DB へ反映する（コミット禁止）
+personas/private/
+
 # debug
 npm-debug.log*
 
