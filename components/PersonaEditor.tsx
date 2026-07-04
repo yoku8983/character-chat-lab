@@ -156,22 +156,28 @@ export default function PersonaEditor({ persona, personaHasProfileImage, onSave,
             entries: saveData.memory?.entries?.length ?? 0,
             constraints: saveData.behavior?.constraints?.length ?? 0,
             examples: saveData.examples?.length ?? 0,
+            relationships: saveData.relationships?.length ?? 0,
+            antiExamples: saveData.anti_examples?.length ?? 0,
           };
           const actual = {
             domains: saved.knowledge?.domains?.length ?? 0,
             entries: saved.memory?.entries?.length ?? 0,
             constraints: saved.behavior?.constraints?.length ?? 0,
             examples: saved.examples?.length ?? 0,
+            relationships: saved.relationships?.length ?? 0,
+            antiExamples: saved.anti_examples?.length ?? 0,
           };
           if (
             actual.domains !== expected.domains ||
             actual.entries !== expected.entries ||
             actual.constraints !== expected.constraints ||
-            actual.examples !== expected.examples
+            actual.examples !== expected.examples ||
+            actual.relationships !== expected.relationships ||
+            actual.antiExamples !== expected.antiExamples
           ) {
             console.error("[PersonaEditor] Save verification failed", { expected, actual });
             setError(
-              `保存データの検証に失敗しました（期待: domains=${expected.domains}, entries=${expected.entries}, constraints=${expected.constraints}, examples=${expected.examples} / 実際: domains=${actual.domains}, entries=${actual.entries}, constraints=${actual.constraints}, examples=${actual.examples}）`
+              `保存データの検証に失敗しました（期待: domains=${expected.domains}, entries=${expected.entries}, constraints=${expected.constraints}, examples=${expected.examples}, relationships=${expected.relationships}, antiExamples=${expected.antiExamples} / 実際: domains=${actual.domains}, entries=${actual.entries}, constraints=${actual.constraints}, examples=${actual.examples}, relationships=${actual.relationships}, antiExamples=${actual.antiExamples}）`
             );
             setSaving(false);
             return;
@@ -302,6 +308,10 @@ export default function PersonaEditor({ persona, personaHasProfileImage, onSave,
                       <tr><td className="font-mono pr-4 py-0.5" style={{ color: "var(--text-primary)" }}>memory.entries[]</td><td>静的記憶の配列</td></tr>
                       <tr><td className="font-mono pr-4 py-0.5" style={{ color: "var(--text-primary)" }}>behavior.constraints[]</td><td>行動制約の配列</td></tr>
                       <tr><td className="font-mono pr-4 py-0.5" style={{ color: "var(--text-primary)" }}>examples[]</td><td>会話例（user + assistant のペア）</td></tr>
+                      <tr><td className="font-mono pr-4 py-0.5" style={{ color: "var(--text-primary)" }}>anti_examples[]</td><td>悪い応答例（user + assistant のペア・任意）</td></tr>
+                      <tr><td className="font-mono pr-4 py-0.5" style={{ color: "var(--text-primary)" }}>identity.point_in_time</td><td>物語上のどの時点のキャラか（任意）</td></tr>
+                      <tr><td className="font-mono pr-4 py-0.5" style={{ color: "var(--text-primary)" }}>user_role</td><td>ユーザーはキャラにとって誰か（任意）</td></tr>
+                      <tr><td className="font-mono pr-4 py-0.5" style={{ color: "var(--text-primary)" }}>relationships[]</td><td>主要人物への呼び方・態度（name + address_as + attitude・任意）</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -400,6 +410,16 @@ export default function PersonaEditor({ persona, personaHasProfileImage, onSave,
                   className="w-full rounded-lg px-4 py-2 text-base outline-none resize-none"
                   style={inputStyle}
                   placeholder="キャラクターの来歴"
+                />
+              </div>
+              <div>
+                <label className={labelClass} style={{ color: "var(--text-secondary)" }}>時点（物語上のどの時点のキャラか・任意）</label>
+                <input
+                  value={form.identity.point_in_time ?? ""}
+                  onChange={(e) => update((p) => { p.identity.point_in_time = e.target.value; })}
+                  className="w-full rounded-lg px-4 py-2 text-base outline-none"
+                  style={inputStyle}
+                  placeholder="例: ○○編の直後、デビュー1年目"
                 />
               </div>
             </div>
@@ -586,6 +606,66 @@ export default function PersonaEditor({ persona, personaHasProfileImage, onSave,
             </button>
           </section>
 
+          {/* 人間関係 */}
+          <section>
+            <h3 className="text-lg md:text-xl font-bold mb-3 md:mb-4" style={{ color: "var(--accent-hover)" }}>人間関係</h3>
+            <div className="mb-3">
+              <label className={labelClass} style={{ color: "var(--text-secondary)" }}>会話相手（ユーザーはキャラにとって誰か・任意）</label>
+              <input
+                value={form.user_role ?? ""}
+                onChange={(e) => update((p) => { p.user_role = e.target.value; })}
+                className="w-full rounded-lg px-4 py-2 text-base outline-none"
+                style={inputStyle}
+                placeholder="例: プロデューサー、初対面の来館者"
+              />
+            </div>
+            <label className={labelClass} style={{ color: "var(--text-secondary)" }}>主要人物への呼び方・態度</label>
+            {(form.relationships ?? []).map((rel, i) => (
+              <div key={i} className="mb-3 p-4 rounded-lg" style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border)" }}>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>関係 {i + 1}</span>
+                  <button
+                    onClick={() => update((p) => { p.relationships!.splice(i, 1); })}
+                    className="text-sm"
+                    style={{ color: "#dc2626" }}
+                  >
+                    削除
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  <input
+                    value={rel.name}
+                    onChange={(e) => update((p) => { p.relationships![i].name = e.target.value; })}
+                    className="rounded px-3 py-1 text-sm outline-none"
+                    style={inputStyle}
+                    placeholder="相手の名前"
+                  />
+                  <input
+                    value={rel.address_as}
+                    onChange={(e) => update((p) => { p.relationships![i].address_as = e.target.value; })}
+                    className="rounded px-3 py-1 text-sm outline-none"
+                    style={inputStyle}
+                    placeholder="呼び方"
+                  />
+                  <input
+                    value={rel.attitude}
+                    onChange={(e) => update((p) => { p.relationships![i].attitude = e.target.value; })}
+                    className="rounded px-3 py-1 text-sm outline-none"
+                    style={inputStyle}
+                    placeholder="態度・距離感"
+                  />
+                </div>
+              </div>
+            ))}
+            <button
+              onClick={() => update((p) => { p.relationships = [...(p.relationships ?? []), { name: "", address_as: "", attitude: "" }]; })}
+              className="text-sm px-4 py-2 rounded-lg"
+              style={{ backgroundColor: "var(--bg-tertiary)", color: "var(--text-primary)" }}
+            >
+              + 関係を追加
+            </button>
+          </section>
+
           {/* 制約 */}
           <section>
             <h3 className="text-lg md:text-xl font-bold mb-3 md:mb-4" style={{ color: "var(--accent-hover)" }}>行動制約</h3>
@@ -659,6 +739,56 @@ export default function PersonaEditor({ persona, personaHasProfileImage, onSave,
               style={{ backgroundColor: "var(--bg-tertiary)", color: "var(--text-primary)" }}
             >
               + 会話例を追加
+            </button>
+          </section>
+
+          {/* 悪い応答例 */}
+          <section>
+            <h3 className="text-lg md:text-xl font-bold mb-3 md:mb-4" style={{ color: "var(--accent-hover)" }}>悪い応答例 (anti-examples)</h3>
+            <p className="text-xs mb-3" style={{ color: "var(--text-secondary)" }}>
+              「こう応答してはいけない」例。システムプロンプトに否定文脈で注入され、崩れやすい応答を抑制します（任意）。
+            </p>
+            {(form.anti_examples ?? []).map((ex, i) => (
+              <div key={i} className="mb-3 p-4 rounded-lg" style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border)" }}>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>悪い例 {i + 1}</span>
+                  <button
+                    onClick={() => update((p) => { p.anti_examples!.splice(i, 1); })}
+                    className="text-sm"
+                    style={{ color: "#dc2626" }}
+                  >
+                    削除
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  <div>
+                    <label className="text-xs" style={{ color: "var(--text-secondary)" }}>ユーザー</label>
+                    <input
+                      value={ex.user}
+                      onChange={(e) => update((p) => { p.anti_examples![i].user = e.target.value; })}
+                      className="w-full rounded px-3 py-1 text-sm outline-none"
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs" style={{ color: "var(--text-secondary)" }}>してはいけない応答</label>
+                    <textarea
+                      value={ex.assistant}
+                      onChange={(e) => update((p) => { p.anti_examples![i].assistant = e.target.value; })}
+                      rows={2}
+                      className="w-full rounded px-3 py-1 text-sm outline-none resize-none"
+                      style={inputStyle}
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+            <button
+              onClick={() => update((p) => { p.anti_examples = [...(p.anti_examples ?? []), { user: "", assistant: "" }]; })}
+              className="text-sm px-4 py-2 rounded-lg"
+              style={{ backgroundColor: "var(--bg-tertiary)", color: "var(--text-primary)" }}
+            >
+              + 悪い例を追加
             </button>
           </section>
         </div>
