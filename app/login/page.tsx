@@ -4,16 +4,22 @@
 import { FormEvent, Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-// オープンリダイレクト防止: "/" 始まりかつ "//" 始まりでなく、
-// バックスラッシュ(URL解釈でスラッシュと等価)を含まない相対パスのみ許可
+// オープンリダイレクト防止: 同一オリジンに解決される "/" 始まりの相対パスのみ許可。
+// ブラックリストではなく「ダミーオリジンで URL 解釈してもオリジンが変わらないこと」で
+// 判定するため、バックスラッシュ・タブ・改行など URL 解析時の等価変換に対しても安全。
+// 返り値はパース後に正規化された pathname + search。
 function safeFrom(from: string | null): string {
-  if (
-    from &&
-    from.startsWith("/") &&
-    !from.startsWith("//") &&
-    !from.includes("\\")
-  ) {
-    return from;
+  if (!from || !from.startsWith("/") || from.startsWith("//")) {
+    return "/";
+  }
+  try {
+    const base = "http://internal.invalid";
+    const url = new URL(from, base);
+    if (url.origin === base) {
+      return url.pathname + url.search;
+    }
+  } catch {
+    // パース不能な値はフォールバック
   }
   return "/";
 }
