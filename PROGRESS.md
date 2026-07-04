@@ -1,16 +1,16 @@
 # PROGRESS.md — character-chat-lab
 
-> 最終更新: 2026-07-04（Fable 5 セッションからの引継ぎ文書を兼ねる）
+> 最終更新: 2026-07-05（Fable 5 セッションからの引継ぎ文書を兼ねる）
 
 ## 現在地
 
 - MVP1・MVP2 完了。Azure Container Apps 本番デプロイ済み（libSQL/Turso + スケールゼロ）
 - **Issue #20「ペルソナデータ設計・コンテキスト戦略・コスト最適化の総合改善」は 2026-07-03 にクローズ**（T1〜T7 完了。仕様書反映 PR #33 マージ済み）
-- 後継の **Issue #34「評価の高精度化とペルソナ設計の実証改善」** に着手フェーズ。**T1「正解データセット評価と参照付き Judge」・T2「品質回帰の継続トラッキング」は 2026-07-04 に実装完了**（詳細は末尾「完了済み」）。次は T3「ペルソナスキーマの実証改善」
+- 後継の **Issue #34「評価の高精度化とペルソナ設計の実証改善」** に着手フェーズ。**T1「正解データセット評価と参照付き Judge」は 2026-07-05 に完了**（実装 + 本番実キャラ 1 体のデータセット v1 + プレイブック/lint 横展開。詳細は末尾「完了済み」）。**T2「品質回帰の継続トラッキング」は 2026-07-04 に実装完了**。次は T3「ペルソナスキーマの実証改善」の A/B 検証
 
 ## 次にやること（Issue #34 のタスク、優先順）
 
-1. ~~T1: 正解データセット評価と参照付き Judge（知識クイズ含め完了）~~ ✅ 完了（`feat/eval-reference-judge` + `feat/eval-knowledge-quiz`。詳細は末尾「完了済み」）
+1. ~~T1: 正解データセット評価と参照付き Judge（知識クイズ・本番キャラのデータセット v1・プレイブック/lint 含め完了）~~ ✅ 完了（`feat/eval-reference-judge` + `feat/eval-knowledge-quiz` + `feat/persona-push` + `feat/persona-playbook`。詳細は末尾「完了済み」）
 2. ~~T2: 品質回帰の継続トラッキング~~ ✅ 完了（`feat/eval-regression-tracking`。詳細は末尾「完了済み」）
 3. **T3: ペルソナスキーマの実証改善**（中）— 進行中。スキーマ拡張（PR 1: `identity.point_in_time` / `user_role` / `relationships`、編集 UI、サンプルペルソナ・README 反映）完了。次は T1 の尖った評価（参照付き Judge）で A/B 検証
 
@@ -73,9 +73,19 @@
   - **PR①（`feat/usage-dashboard`、Task 1〜4）**: usage 集計拡張（JST 基準の byDay/byMonth・today/thisMonth）・円換算ヘルパ・usage ページ改修・ドキュメント更新まで実装完了。日別/月別/今日/今月の集計境界を UTC→JST 基準に変える判断（Task 1）は**ユーザー承認済み**。次は PR 作成（`npx tsc --noEmit` 最終確認後）
   - **PR②（`feat/eval-gui`、Task 5〜10・評価 GUI）**: 実装完了・PR 作成待ち（詳細は末尾「完了済み」）
 - 関連の合意事項（このセッションでの議論・未着手）: 実キャラ運用は「ローカル私設リポジトリ（personas + datasets 並置）を master とし、本番 Turso へはペルソナ JSON のみ push」方針で合意。`persona:pull` / `persona:push` スクリプトは未実装（Issue 未起票）。**「本番全 API が無認証」の問題は Issue #42 として起票済み・共有シークレット認証で対応完了**（詳細は末尾「完了済み」。マージ後は Azure に `AUTH_SECRET` を設定してからデプロイすること）
-- Issue #34 T1 の残り: 本番キャラの正解ペア 20〜50 件 + クイズ設問の作成（開発者監修・リポジトリ外運用。ユーザーと協働）
+- ~~Issue #34 T1 の残り: 本番キャラの正解ペア 20〜50 件 + クイズ設問の作成（開発者監修・リポジトリ外運用。ユーザーと協働）~~ ✅ 2026-07-05 完了（詳細は末尾「完了済み」）
 
 ## 完了済み（直近）
+
+- 2026-07-05: **Issue #34 T1 完了: 本番実キャラ 1 体の正解データセット v1 完成 + 横展開整備（プレイブック + dataset:lint）**（後半はブランチ `feat/persona-playbook`）
+  - **正解データセット v1（リポジトリ外・gitignore 済みパス）**: 参照ペア 49 件（canon:true 31 / canon:false 18 = 37%）+ 知識クイズ 10 問。エージェントのドラフトを**ユーザーが 1 件ずつ全件監修**（削除 1・全面書き直し十数件を含む修正率約 4 割）。監修過程でキャラ執筆原則を多数確立（プレイブックに一般化して収録）
+  - **ペルソナの時点統一と DB 反映**: パイロット作品の時点に統一（`point_in_time` / `user_role` / `relationships` 5 件）し、`persona:push` でローカル DB と本番 Turso の両方へ UPDATE 反映（profile_image 保持）。両 DB とも反映内容を実照会で検証済み
+  - **縮小スモーク評価**: 参照付き Judge（1 シナリオ × 2 ターン）で loadDataset 通過・referenceFidelity=5.00 出力を実確認。知識クイズは 7/10 でベースライン取得（不正解 3 問はペルソナの実弱点を正しく検出: 固有名詞の欠落＋捏造 1、時間軸ズレ 1、核心情報の婉曲化 1 → T3 の改善対象）。総コスト $0.005 未満
+  - **外部リサーチの検証と反映**: ユーザーが外部 AI チャットで取得した先行研究調査（ロールプレイ評価・対話ペア抽出・few-shot 飽和・時点管理・ASR）を受領。**引用論文の実在と主要数値を検証**（全 16 件実在。方向性の主張は裏取り済み、一部の細かい実験数値はアブスト未確認のため断定引用を回避）。適用判定（採用/軽量採用/将来課題）の上でプレイブックに反映
+  - `docs/persona-playbook.md` 新設: 方法論のみ（キャラデータなし）。時点決定ルール、シーン抽出・ペアドラフト生成のプロンプトテンプレート 2 種（confidence 付き）、監修チェック観点 10 項目、クイズ設計 3 型、工数目安と分業基準、検証済み外部知見、将来課題（Judge 向け許容条件フィールド、メタデータ v2、Core+Arc State 分離、検索型 few-shot、few-shot 飽和点実験）
+  - `scripts/eval/dataset-lint.ts` 新設（`npm run dataset:lint -- <path>`）: loadDataset の形式検証（違反は exit 1）+ 品質ルール警告（ペア数 20 未満 WARN / 50 未満 INFO、canon:false 比率 3〜4 割、situation/reference 重複、situation の極端な短さ、**canon:false のみ** reference の短さ検査〔canon:true の短い名返答は正当のため除外〕、捏造検出型クイズ最低 2 問）。警告は表示のみで exit 0
+  - **既知の残指摘（v1 データセットへの lint 結果・対応は任意)**: ペア 49 件（50 件推奨に 1 件不足）、mustNotContain 型クイズが 1 問（推奨 2 問）。次回データセット拡張時に解消予定
+  - **申し送り（再掲・T3 PR3 の前に必須）**: `judge.ts summarizePersona()` が新スキーマ（point_in_time / user_role / relationships / anti_examples）を Judge プロンプトに含めていない。A/B 検証前に対応すること
 
 - 2026-07-04: **Issue #34 T1 残タスク着手: 正解データセット v1 の設計確定 + `persona:push` 実装**（ブランチ `feat/persona-push`）
   - 設計書: `docs/superpowers/specs/2026-07-04-ground-truth-dataset-v1-design.md`（ユーザー承認済み）。決定事項: パイロットキャラのペルソナは対象作品の時点に統一（`point_in_time` 活用）/ 実キャラ JSON は `personas/private/`（gitignore 新設）に置き `persona:push` で DB 反映 / v1 規模は正解ペア 50 件（canon:false 約 18 件）+ クイズ 10 問
