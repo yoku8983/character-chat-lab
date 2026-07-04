@@ -4,9 +4,15 @@
 import { FormEvent, Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-// オープンリダイレクト防止: "/" 始まりかつ "//" 始まりでない相対パスのみ許可
+// オープンリダイレクト防止: "/" 始まりかつ "//" 始まりでなく、
+// バックスラッシュ(URL解釈でスラッシュと等価)を含まない相対パスのみ許可
 function safeFrom(from: string | null): string {
-  if (from && from.startsWith("/") && !from.startsWith("//")) {
+  if (
+    from &&
+    from.startsWith("/") &&
+    !from.startsWith("//") &&
+    !from.includes("\\")
+  ) {
     return from;
   }
   return "/";
