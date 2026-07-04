@@ -2,6 +2,7 @@ import fs from "fs";
 import { EvalReport } from "./report";
 import { RateSet } from "./markers";
 import { JudgeScores } from "./judge";
+import { checkRegression, DEFAULT_THRESHOLDS, RegressionResult } from "./regression";
 
 function loadReport(filePath: string): EvalReport {
   if (!fs.existsSync(filePath)) {
@@ -82,13 +83,64 @@ function printAggregateReferenceFidelityDiff(
   }
 }
 
-function main(): void {
-  const [beforePath, afterPath] = process.argv.slice(2);
-
-  if (!beforePath || !afterPath) {
-    console.error("使い方: npm run eval:compare -- <before.json> <after.json>");
+function readNumberOption(args: string[], name: string): number | null {
+  const idx = args.indexOf(name);
+  if (idx === -1) {
+    return null;
+  }
+  const raw = args[idx + 1];
+  const value = Number(raw);
+  if (raw === undefined || Number.isNaN(value)) {
+    console.error(`${name} には数値を指定してください（指定値: ${raw}）`);
     process.exit(1);
   }
+  return value;
+}
+
+function fmtJudgeValue(n: number): string {
+  return n.toFixed(2);
+}
+
+function printCheckResult(result: RegressionResult): void {
+  console.log("\n--- 回帰チェック ---");
+  const rows = result.findings.map((f) => ({
+    観点: f.metric,
+    基準値: f.kind === "marker" ? fmtPct(f.baseline) : fmtJudgeValue(f.baseline),
+    今回値: f.kind === "marker" ? fmtPct(f.current) : fmtJudgeValue(f.current),
+    差分: f.kind === "marker" ? fmtPct(f.delta) : fmtJudgeValue(f.delta),
+    判定: f.failed ? "FAIL" : "OK",
+  }));
+  console.table(rows);
+
+  for (const s of result.skipped) {
+    console.log(`（スキップ）${s}`);
+  }
+
+  if (result.pass) {
+    console.log("✅ 回帰チェック PASS");
+  } else {
+    const failedCount = result.findings.filter((f) => f.failed).length;
+    console.log(`❌ 回帰チェック FAIL（${failedCount} 観点が閾値超の下落）`);
+  }
+}
+
+function main(): void {
+  const args = process.argv.slice(2);
+  const positional = args.filter((a) => !a.startsWith("--"));
+  const [beforePath, afterPath] = positional;
+
+  if (!beforePath || !afterPath) {
+    console.error(
+      "使い方: npm run eval:compare -- <before.json> <after.json> [--check] [--judge-threshold 0.5] [--marker-threshold 15]"
+    );
+    process.exit(1);
+  }
+
+  const check = args.includes("--check");
+  const judgeThreshold = readNumberOption(args, "--judge-threshold") ?? DEFAULT_THRESHOLDS.judgeDrop;
+  const markerThresholdPt = readNumberOption(args, "--marker-threshold");
+  const markerThreshold =
+    markerThresholdPt !== null ? markerThresholdPt / 100 : DEFAULT_THRESHOLDS.markerDropRate;
 
   const before = loadReport(beforePath);
   const after = loadReport(afterPath);
@@ -122,6 +174,19 @@ function main(): void {
     printRateSetDiff("late ", b.drift.late, a.drift.late);
     printRateSetDiff("delta", b.drift.delta, a.drift.delta);
     printJudgeDiff(b.judge, a.judge);
+  }
+
+  if (check) {
+    if (before.meta.persona !== after.meta.persona || before.meta.model !== after.meta.model) {
+      console.log("⚠️ 構成が異なります（persona/model）。同一構成での比較を推奨します");
+    }
+
+    const result = checkRegression(before, after, {
+      judgeDrop: judgeThreshold,
+      markerDropRate: markerThreshold,
+    });
+    printCheckResult(result);
+    process.exit(result.pass ? 0 : 1);
   }
 }
 
